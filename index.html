@@ -1474,7 +1474,7 @@
             headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'normal', halign: 'center' },
             columnStyles: { index: { width: 12, halign: 'center' }, timestamp: { width: 25, halign: 'center' }, name: { width: 20, halign: 'center' }, signature: { width: 35, halign: 'center' } },
             didDrawCell: function (data) {
-              const modId = data.column.key;
+              const modId = data.column.dataKey;
               const rawRow = data.row.raw;
               if (rawRow && rawRow._signatures && rawRow._signatures[modId]) {
                 const imgData = rawRow._signatures[modId];
@@ -1517,7 +1517,7 @@
           headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'normal', halign: 'center' },
           columnStyles: { index: { width: 12, halign: 'center' }, timestamp: { width: 25, halign: 'center' }, name: { width: 20, halign: 'center' }, signature: { width: 35, halign: 'center' } },
           didDrawCell: function (data) {
-            const modId = data.column.key;
+            const modId = data.column.dataKey;
             const rawRow = data.row.raw;
             if (rawRow && rawRow._signatures && rawRow._signatures[modId]) {
               const imgData = rawRow._signatures[modId];
