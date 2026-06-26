@@ -1637,83 +1637,83 @@
         const isFirstPage = pageIdx === 0;
         const pageBreakClass = (pageIdx < pages.length - 1) ? 'page-break' : '';
 
-        html += \`<div class="\${pageBreakClass}" style="padding-bottom: 20px;">\`;
+        html += `<div class="${pageBreakClass}" style="padding-bottom: 20px;">`;
 
         if (isFirstPage || rowsPerPage === 0) {
-          html += \`
+          html += `
             <div class="header-info">
               <h1>연수·협의회 출석등록부</h1>
               <table class="info-table">
                 <tr>
                   <td class="label">연수·회의명</td>
-                  <td>\${training.title}</td>
+                  <td>${training.title}</td>
                   <td class="label">일시</td>
-                  <td>\${training.date}</td>
+                  <td>${training.date}</td>
                 </tr>
                 <tr>
                   <td class="label">장소</td>
-                  <td>\${training.location}</td>
+                  <td>${training.location}</td>
                   <td class="label">등록 인원</td>
-                  <td>총 \${responses.length}명 \${pages.length > 1 ? \`(페이지 \${pageIdx + 1}/\${pages.length})\` : ''}</td>
+                  <td>총 ${responses.length}명 ${pages.length > 1 ? `(페이지 ${pageIdx + 1}/${pages.length})` : ''}</td>
                 </tr>
               </table>
             </div>
-          \`;
+          `;
         } else {
-          html += \`
+          html += `
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #ccc; padding-bottom:5px; margin-bottom:15px; font-size:12px; color:#666;">
-              <span>\${training.title} - 출석대장</span>
-              <span>페이지 \${pageIdx + 1} / \${pages.length}</span>
+              <span>${training.title} - 출석대장</span>
+              <span>페이지 ${pageIdx + 1} / ${pages.length}</span>
             </div>
-          \`;
+          `;
         }
 
-        html += \`
+        html += `
           <table class="data-table">
             <thead>
               <tr>
-                \${columns.map(col => \`<th>\${col}</th>\`).join('')}
+                ${columns.map(col => `<th>${col}</th>`).join('')}
               </tr>
             </thead>
             <tbody>
-              \${pageResponses.map((resp, pRespIdx) => {
+              ${pageResponses.map((resp, pRespIdx) => {
                 const globalIdx = (rowsPerPage > 0) ? (pageIdx * rowsPerPage + pRespIdx) : pRespIdx;
                 
-                return \\\`
+                return `
                   <tr>
-                    \${selectedColumns.includes('index') ? \\\`<td>\\\${globalIdx + 1}</td>\\\` : ''}
-                    \${selectedColumns.includes('timestamp') ? \\\`<td>\\\${new Date(resp.timestamp).toLocaleDateString() + ' ' + new Date(resp.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>\\\` : ''}
-                    \${selectedColumns.includes('name') ? \\\`<td style="font-weight:bold;">\\\${resp.name}</td>\\\` : ''}
-                    \${activeModules.map(mod => {
+                    ${selectedColumns.includes('index') ? `<td>${globalIdx + 1}</td>` : ''}
+                    ${selectedColumns.includes('timestamp') ? `<td>${new Date(resp.timestamp).toLocaleDateString() + ' ' + new Date(resp.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>` : ''}
+                    ${selectedColumns.includes('name') ? `<td style="font-weight:bold;">${resp.name}</td>` : ''}
+                    ${activeModules.map(mod => {
                       if (!selectedColumns.includes(mod.id)) return '';
                       const val = resp.responses[mod.id];
                       
                       if (mod.type === 'signature') {
                         if (val && val.startsWith('data:image/')) {
-                          return \\\`<td><img class="signature-img" src="\\\${val}" alt="서명"></td>\\\`;
+                          return `<td><img class="signature-img" src="${val}" alt="서명"></td>`;
                         }
-                        return \\\`<td>[서명 누락]</td>\\\`;
+                        return `<td>[서명 누락]</td>`;
                       }
                       
                       if (mod.type === 'file_upload') {
                         if (val && typeof val === 'object' && val.filename) {
-                          return \\\`<td>📁 \\\${val.filename}</td>\\\`;
+                          return `<td>📁 ${val.filename}</td>`;
                         } else if (val) {
-                          return \\\`<td>📁 첨부파일</td>\\\`;
+                          return `<td>📁 첨부파일</td>`;
                         }
-                        return \\\`<td>-</td>\\\`;
+                        return `<td>-</td>`;
                       }
 
-                      return \\\`<td>\\\${val === undefined || val === null ? '' : (Array.isArray(val) ? val.join(', ') : String(val))}</td>\\\`;
+                      return `<td>${val === undefined || val === null ? '' : (Array.isArray(val) ? val.join(', ') : String(val))}</td>`;
                     }).join('')}
                   </tr>
-                \\\`;
+                `;
               }).join('')}
             </tbody>
           </table>
-          <div class="footer-info">모두의 연수등록부 © \${new Date().getFullYear()}</div>
+          <div class="footer-info">모두의 연수등록부 © ${new Date().getFullYear()}</div>
         </div>
-        \`;
+        `;
       });
 
       html += `
