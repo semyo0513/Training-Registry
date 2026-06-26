@@ -1404,12 +1404,16 @@
         const row = {
           index: String(i + 1),
           timestamp: new Date(resp.timestamp).toLocaleDateString() + ' ' + new Date(resp.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-          name: resp.name
+          name: resp.name,
+          _signatures: {}
         };
 
         activeModules.forEach(mod => {
           const val = resp.responses[mod.id];
-          if (mod.type === 'file_upload') {
+          if (mod.type === 'signature') {
+            row._signatures[mod.id] = val;
+            row[mod.id] = '';
+          } else if (mod.type === 'file_upload') {
             if (val && typeof val === 'object' && val.filename) {
               row[mod.id] = `[파일: ${val.filename}]`;
             } else if (val) {
@@ -1470,18 +1474,21 @@
             headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'normal', halign: 'center' },
             columnStyles: { index: { width: 12, halign: 'center' }, timestamp: { width: 25, halign: 'center' }, name: { width: 20, halign: 'center' }, signature: { width: 35, halign: 'center' } },
             didDrawCell: function (data) {
-              // 서명 열 렌더링
-              if (data.cell.raw && String(data.cell.raw).startsWith('data:image/')) {
-                const imgData = data.cell.raw;
-                const cellW = data.cell.width;
-                const cellH = data.cell.height;
-                const p = 1.5;
-                try { doc.addImage(imgData, 'PNG', data.cell.x + p, data.cell.y + p, cellW - p*2, cellH - p*2); } catch (e) { console.error(e); }
+              const modId = data.column.key;
+              const rawRow = data.row.raw;
+              if (rawRow && rawRow._signatures && rawRow._signatures[modId]) {
+                const imgData = rawRow._signatures[modId];
+                if (imgData.startsWith('data:image/')) {
+                  const cellW = data.cell.width;
+                  const cellH = data.cell.height;
+                  const p = 1.5;
+                  try { doc.addImage(imgData, 'PNG', data.cell.x + p, data.cell.y + p, cellW - p*2, cellH - p*2); } catch (e) { console.error(e); }
+                }
               }
             },
             willDrawCell: function (data) {
-              const keys = Object.keys(data.row.cells);
-              const hasSig = keys.some(k => String(data.row.cells[k].raw).startsWith('data:image/'));
+              const rawRow = data.row.raw;
+              const hasSig = rawRow && rawRow._signatures && Object.keys(rawRow._signatures).length > 0;
               if (hasSig) data.row.height = 14;
             }
           });
@@ -1510,17 +1517,21 @@
           headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'normal', halign: 'center' },
           columnStyles: { index: { width: 12, halign: 'center' }, timestamp: { width: 25, halign: 'center' }, name: { width: 20, halign: 'center' }, signature: { width: 35, halign: 'center' } },
           didDrawCell: function (data) {
-            if (data.cell.raw && String(data.cell.raw).startsWith('data:image/')) {
-              const imgData = data.cell.raw;
-              const cellW = data.cell.width;
-              const cellH = data.cell.height;
-              const p = 1.5;
-              try { doc.addImage(imgData, 'PNG', data.cell.x + p, data.cell.y + p, cellW - p*2, cellH - p*2); } catch (e) { console.error(e); }
+            const modId = data.column.key;
+            const rawRow = data.row.raw;
+            if (rawRow && rawRow._signatures && rawRow._signatures[modId]) {
+              const imgData = rawRow._signatures[modId];
+              if (imgData.startsWith('data:image/')) {
+                const cellW = data.cell.width;
+                const cellH = data.cell.height;
+                const p = 1.5;
+                try { doc.addImage(imgData, 'PNG', data.cell.x + p, data.cell.y + p, cellW - p*2, cellH - p*2); } catch (e) { console.error(e); }
+              }
             }
           },
           willDrawCell: function (data) {
-            const keys = Object.keys(data.row.cells);
-            const hasSig = keys.some(k => String(data.row.cells[k].raw).startsWith('data:image/'));
+            const rawRow = data.row.raw;
+            const hasSig = rawRow && rawRow._signatures && Object.keys(rawRow._signatures).length > 0;
             if (hasSig) data.row.height = 14;
           }
         });
@@ -2311,17 +2322,120 @@
           btn.disabled = false; btn.textContent = '출석부 제출';
         }
       }
-      renderSuccess(name) {
+      async renderSuccess(name) {
+        // 1. 로딩 상태 출력
         this.container.innerHTML = `
           <div class="card" style="max-width: 500px; margin: 3rem auto; text-align: center;">
+            <div style="font-size: 3.5rem; line-height: 1; margin-bottom: 1rem; color: var(--color-success);">✅</div>
             <h2 class="card-title">출석 등록 성공</h2>
             <p style="margin-bottom: 2rem;"><strong>${name}</strong>님의 출석 서명이 접수되었습니다.</p>
-            <button class="btn btn-primary" id="btn-re">추가 대리 등록</button>
+            <div id="ranking-container" style="margin-bottom: 2rem;">
+              <div style="font-size:0.9rem; color:var(--text-secondary); display:flex; justify-content:center; align-items:center; gap:0.5rem;">
+                <style>
+                  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                </style>
+                <span class="loading-spinner" style="width:16px; height:16px; border:2px solid var(--border-color); border-top-color:var(--color-primary); border-radius:50%; animation:spin 1s linear infinite;"></span>
+                실시간 랭킹 정보를 불러오는 중...
+              </div>
+            </div>
+            <button class="btn btn-primary" id="btn-re" style="width:100%;">추가 대리 등록</button>
           </div>
         `;
+        
         this.container.querySelector('#btn-re').addEventListener('click', () => {
           new UserPage(this.container, { trainingId: this.trainingId });
         });
+
+        // 2. 랭킹 계산 및 렌더링
+        try {
+          const responses = await api.getResponses(this.trainingId);
+          responses.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+          // 내 등수 찾기 (이름 매칭)
+          const myIdx = responses.findIndex(r => r.name.trim() === name.trim());
+          const myRank = myIdx !== -1 ? (myIdx + 1) : responses.length;
+
+          let rankBadge = '';
+          if (myRank === 1) rankBadge = '🥇 1등';
+          else if (myRank === 2) rankBadge = '🥈 2등';
+          else if (myRank === 3) rankBadge = '🥉 3등';
+          else rankBadge = `${myRank}등`;
+
+          const participants = this.selectedTraining.participants || [];
+          const attendedNames = new Set(responses.map(r => r.name.trim()));
+
+          // 부서 목록 및 달성률 계산
+          const deptNames = participants.map(p => (p.department || '').trim()).filter(d => d !== '');
+          const uniqueDepts = [...new Set(deptNames)];
+          const showDeptRanking = uniqueDepts.length > 1;
+
+          let rankingHtml = '';
+
+          // 개인 등수 박스
+          rankingHtml += `
+            <div style="margin: 1.5rem 0; padding: 1.25rem; background: linear-gradient(135deg, var(--bg-secondary), var(--bg-primary)); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm);">
+              <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">나의 출석 순위</div>
+              <div style="font-size: 1.75rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                ${rankBadge}
+              </div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">전체 참석자 ${responses.length}명 중 ${myRank}번째로 출석하셨습니다!</div>
+            </div>
+          `;
+
+          // 부서 랭킹보드 (부서명이 모두 동일하지 않고 2개 이상일 때만 표시)
+          if (showDeptRanking) {
+            const deptStats = uniqueDepts.map(dept => {
+              const targetCount = participants.filter(p => (p.department || '').trim() === dept).length;
+              const attendedCount = participants.filter(p => (p.department || '').trim() === dept && attendedNames.has(p.name.trim())).length;
+              const rate = targetCount > 0 ? (attendedCount / targetCount) * 100 : 0;
+              return { dept, targetCount, attendedCount, rate };
+            });
+
+            // 달성률 기준 내림차순 정렬
+            deptStats.sort((a, b) => b.rate - a.rate || b.targetCount - a.targetCount);
+
+            // 내 부서 찾기
+            const myPart = participants.find(p => p.name.trim() === name.trim());
+            const myDept = myPart ? (myPart.department || '').trim() : '';
+
+            rankingHtml += `
+              <div style="margin-top: 1.5rem; text-align: left; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.35rem;">
+                  📊 부서별 출석 달성률 랭킹
+                </h4>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 240px; overflow-y: auto; padding-right: 0.25rem;">
+                  ${deptStats.map((stat, idx) => {
+                    const rankMedal = idx === 0 ? '🏆' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : '👏'));
+                    const pct = stat.rate.toFixed(1);
+                    const isMyDept = myDept && stat.dept === myDept;
+                    return `
+                      <div style="background-color:${isMyDept ? 'rgba(79, 70, 229, 0.05)' : 'var(--bg-primary)'}; border: 1px solid ${isMyDept ? 'var(--color-primary)' : 'var(--border-color)'}; border-radius: var(--radius-sm); padding: 0.75rem; display: flex; flex-direction: column; gap: 0.35rem; position: relative;">
+                        ${isMyDept ? `<span class="badge badge-success" style="position: absolute; right: 0.75rem; top: 0.75rem; font-size: 0.7rem;">내 부서</span>` : ''}
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 600;">
+                          <span>${rankMedal} ${idx + 1}위. ${stat.dept}</span>
+                          <span style="color: ${isMyDept ? 'var(--color-primary)' : 'var(--text-primary)'};">${pct}%</span>
+                        </div>
+                        <div style="width: 100%; height: 6px; background-color: var(--border-color); border-radius: 3px; overflow: hidden;">
+                          <div style="width: ${pct}%; height: 100%; background: ${isMyDept ? 'var(--color-primary)' : 'var(--text-secondary)'}; border-radius: 3px;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-muted);">
+                          <span>참석: ${stat.attendedCount}/${stat.targetCount}명</span>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            `;
+          }
+
+          document.getElementById('ranking-container').innerHTML = rankingHtml;
+        } catch (err) {
+          console.warn('Failed to load real-time ranking:', err);
+          document.getElementById('ranking-container').innerHTML = `
+            <div style="font-size:0.8rem; color:var(--text-muted);">실시간 랭킹 보드를 불러올 수 없습니다.</div>
+          `;
+        }
       }
     }
 
