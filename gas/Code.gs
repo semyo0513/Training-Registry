@@ -54,6 +54,17 @@ function doPost(e) {
     let result;
 
     switch (action) {
+      // GET 액션의 POST 폴백 지원 (CORS 및 단순 페치 지원용)
+      case 'getTrainings':
+        result = getTrainings();
+        break;
+      case 'getForm':
+        result = getForm(payload.id);
+        break;
+      case 'getResponses':
+        result = getResponses(payload.id);
+        break;
+      // 기존 POST 액션
       case 'adminLogin':
         result = adminLogin(payload.password);
         break;
