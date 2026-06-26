@@ -2274,6 +2274,7 @@
       async handleTrainingChange() {
         const id = this.selectEl.value;
         if (!id) { this.formArea.style.display = 'none'; return; }
+        this.trainingId = id;
         this.formArea.style.display = 'block';
         this.modulesContainer.innerHTML = '로딩 중...';
         try {
@@ -2348,7 +2349,7 @@
 
         // 2. 랭킹 계산 및 렌더링
         try {
-          const responses = await api.getResponses(this.trainingId);
+          const responses = await api.getResponses(this.selectedTraining ? this.selectedTraining.id : this.trainingId);
           responses.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
           // 내 등수 찾기 (이름 매칭)
