@@ -268,13 +268,59 @@ function submitResponse(trainingId, name, responses) {
   if (!sheet) throw new Error('응답을 수집할 출석 시트가 존재하지 않습니다.');
 
   const timestamp = new Date().toISOString();
-  const responsesJson = JSON.stringify(responses || {});
+  
+  // 첨부파일 처리 (file_upload가 있을 때 드라이브에 저장하고 URL로 대체)
+  const processedResponses = {};
+  for (const key in responses) {
+    const val = responses[key];
+    if (val && typeof val === 'object' && val.base64 && val.filename) {
+      try {
+        const fileUrl = uploadFileToDrive(val.base64, val.filename);
+        processedResponses[key] = fileUrl; // URL 링크로 대체 저장
+      } catch (e) {
+        processedResponses[key] = '[파일 저장 실패: ' + e.toString() + ']';
+      }
+    } else {
+      processedResponses[key] = val;
+    }
+  }
+
+  const responsesJson = JSON.stringify(processedResponses);
 
   // 응답 데이터 기록
   sheet.appendRow([timestamp, name, responsesJson]);
 
   return { success: true };
 }
+
+// 6-9. 첨부파일을 구글 드라이브에 업로드하고 다운로드 링크 반환
+function uploadFileToDrive(base64Data, filename) {
+  const folderName = "모두의연수등록부_첨부파일";
+  let folder;
+  
+  // 폴더가 존재하는지 조회
+  const folders = DriveApp.getFoldersByName(folderName);
+  if (folders.hasNext()) {
+    folder = folders.next();
+  } else {
+    folder = DriveApp.createFolder(folderName);
+  }
+  
+  // Base64 데이터 파싱 (예: "data:application/pdf;base64,JVBER...")
+  const parts = base64Data.split(',');
+  const contentType = parts[0].match(/:(.*?);/)[1];
+  const rawData = parts[1];
+  
+  const decoded = Utilities.base64Decode(rawData);
+  const blob = Utilities.newBlob(decoded, contentType, filename);
+  const file = folder.createFile(blob);
+  
+  // 누구나 링크로 다운로드 가능하도록 보기 권한 부여
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  
+  return file.getUrl();
+}
+
 
 // 6-8. 특정 연수 응답 결과 리스트 가져오기
 function getResponses(id) {

@@ -9,13 +9,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
-  <!-- 외부 라이브러리 CDN 로드 (웹 서버 없이 작동하도록 글로벌 객체 바인딩 형식으로 사용) -->
+  <!-- 외부 라이브러리 CDN 로드 (글로벌 jspdf 객체 바인딩 사용) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
   <!-- 프리미엄 디자인 시스템 스타일시트 -->
   <style>
-    /* 1. 디자인 토큰 및 CSS 변수 */
     :root {
       --font-sans: 'Outfit', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       
@@ -64,7 +63,6 @@
       --glass-blur: 12px;
     }
 
-    /* 다크 테마 대응 */
     [data-theme="dark"] {
       --bg-primary: #0b0f19;
       --bg-secondary: #161e2e;
@@ -89,7 +87,6 @@
       --glass-border: rgba(255, 255, 255, 0.05);
     }
 
-    /* 2. 전역 스타일 초기화 */
     *, *::before, *::after {
       box-sizing: border-box;
       margin: 0;
@@ -211,7 +208,6 @@
       animation: fadeIn var(--transition-normal);
     }
 
-    /* 3. 애니메이션 */
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(8px); }
       to { opacity: 1; transform: translateY(0); }
@@ -222,7 +218,6 @@
       to { transform: translateX(0); opacity: 1; }
     }
 
-    /* 4. 공통 UI */
     .card {
       background-color: var(--bg-secondary);
       border: 1px solid var(--border-color);
@@ -250,7 +245,6 @@
       margin-bottom: 1.5rem;
     }
 
-    /* 5. 폼 스타일 */
     .form-group {
       margin-bottom: 1.5rem;
     }
@@ -261,6 +255,7 @@
       font-weight: 600;
       margin-bottom: 0.5rem;
       color: var(--text-primary);
+      white-space: pre-wrap; /* 여러 줄 약관/설명 대응 */
     }
 
     .form-label .required {
@@ -357,7 +352,6 @@
       transform: scale(1);
     }
 
-    /* 6. 버튼 */
     .btn {
       display: inline-flex;
       align-items: center;
@@ -429,7 +423,6 @@
       transform: none !important;
     }
 
-    /* 7. 테이블 */
     .table-responsive {
       width: 100%;
       overflow-x: auto;
@@ -463,7 +456,6 @@
       background-color: var(--bg-primary);
     }
 
-    /* 8. 서명 모듈 */
     .signature-container {
       display: flex;
       flex-direction: column;
@@ -544,7 +536,6 @@
       display: block;
     }
 
-    /* 9. 빌더 드래그앤드롭 */
     .builder-layout {
       display: grid;
       grid-template-columns: 280px 1fr 320px;
@@ -640,13 +631,6 @@
       max-width: 300px;
     }
 
-    .canvas-empty-state svg {
-      color: var(--text-muted);
-      width: 3.5rem;
-      height: 3.5rem;
-      stroke-width: 1.2;
-    }
-
     .builder-item {
       position: relative;
       background-color: var(--bg-secondary);
@@ -716,7 +700,6 @@
       text-align: center;
     }
 
-    /* 10. 알림 및 모달 */
     .toast-container {
       position: fixed;
       bottom: 2rem;
@@ -894,7 +877,6 @@
     // [1] 전역 설정 및 가상 DB 시드
     // -------------------------------------------------------------
     const config = {
-      // 로컬 스토리지에 저장된 Google Apps Script Web App URL 반환 (기본값 설정)
       getGasUrl() {
         return localStorage.getItem('everyone_register_gas_url') || 'https://script.google.com/macros/s/AKfycbzJNMTxLcMD6OxIPSvHlORSuGjFnAh1jmL31voqMuYONIw9YqfKSAlCXT3Y3OFDNjyxWg/exec';
       },
@@ -911,7 +893,7 @@
       }
     };
 
-    const DEFAULT_MOCK_SIGNATURE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAYAAACqQX6dAAAABmJLR0QA/wD/AP+gvaeTAAAClElEQVR4nO2cwUtUURzHP+8Zc1Ka/gHTKkSpFpG0CDdK2hS0ClK3LgK3LfoPQbsW/QdBtChasSAIwVVBtHAREaKICFpEE5lOZ97ToeMwzszoe/PeTOf7gZl57757Pvd373v3vd8dEEIIIYQQQgghhBBCCCFE0xGxAsvJqN161K49atceoVqPAgAM1XoMAGo9FvGqXQ+B9ShT6xG1HlHrcd4K1HoArEeRWo9vtd6dWo+o9TirQ5+NlGvj+Nnx1HqUqfUoU+tRptajTK3HJ2tS+B/11XoAan1p/hRQa5tQawE12i6P+7n/K6q0XfO13d9sYxM3t/Yxt/4u1W2/uG2/6C+u15hV7v87hBBC3BYR21P9ZNRuPWq3HrVrj1CtRwEAhmq9B8bXei/w+FovMNeK1XrUerZ9L/lW6zVjPRbxeVjEr/UoU+tRptajTK1HmVqPy7XxrV822sW2DdV6DKz3E6o9rPee1P4E1nvq+Z5a+6m1Taq01XP9hDq+p3v5+T3VbaD7m9s213G/Wn0AEEIIIYQQQgghhBBCtDIRK7CcjNqtR+3ao3btEar1KADAUK3HANR6PGBhvQd4WK/x9Dyr1WMRr9rjYfF6POw9tZ7t1Hpy1nsgW7156y1k61l/51XrmdZqfWn+TGPWsM1j1nbD2G7N1vOaZ9R7v4s46D2T1u+J0P9f9d7rV95Z1e+p915P7WeW95/fR/13Gj/fFm2W3P+K2H4+o/y6aPv/3H++WwghhBBC3DYR21P9ZNRuPWq3HrVrj1CtRwEAhmq9BwDVeiySVa3HA1a29ex11Xo8fF5XrcfD1vPUesf/WqX1fK72K1O/d5/t5/uq9f6z3v+p/wHwKqK2gXv2iAAAAABJRU5ErkJggg==';
+    const DEFAULT_MOCK_SIGNATURE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAYAAACqQX6dAAAABmJLR0QA/wD/AP+gvaeTAAAClElEQVR4nO2cwUtUURzHP+8Zc1Ka/gHTKkSpFpG0CDdK2hS0ClK3LgK3LfoPQbsW/QdBtChasSAIwVVBtHAREaKICFpEE5lOZ97ToeMwzszoe/PeTOf7gZl57757Pvd373v3vd8dEEIIIYQQQgghhBBCCCFE0xGxAsvJqN161K49atceoVqPAgAM1XoMAGo9FvGqXQ+B9ShT6xG1HlHrcd4K1HoArEeRWo9vtd6dWo+o9TirQ5+NlGvj+Nnx1HqUqfUoU+tRptajTK3HJ2tS+B/11XoAan1p/hRQa5tQawE12i6P+7n/K6q0XfO13d9sYxM3t/Yxt/4u1W2/uG2/6C+u15hV7v87hBBC3BYR21P9ZNRuPWq3HrVrj1CtRwEAhmq9B8bXei/w+FovMNeK1XrUerZ9L/lW6zVjPRbxeVjEr/UoU+tRptajTK1HmVqPy7XxrV822sW2DdV6DKz3E6o9rPee1P4E1nvq+Z5a+6m1Taq01XP9hDq+p3v5+T3VbaD7m9s213G/Wn0AEEIIIYQQQgghhBBCCCFE0xGxAsvJqN161K49atceoVqPAgAM1XoMAGo9FvGqXQ+B9ShT6xG1HlHrcd4K1HoArEeRWo9vtd6dWo+o9TirQ5+NlGvj+Nnx1HqUqfUoU+tRptajTK3HJ2tS+B/11XoAan1p/hRQa5tQawE12i6P+7n/K6q0XfO13d9sYxM3t/Yxt/4u1W2/uG2/6C+u15hV7v87hBBC3BYR21P9ZNRuPWq3HrVrj1CtRwEAhmq9BwDVeiySVa3HA1a29ex11Xo8fF5XrcfD1vPUesf/WqX1fK72K1O/d5/t5/uq9f6z3v+p/wHwKqK2gXv2iAAAAABJRU5ErkJggg==';
 
     const SEED_TRAININGS = [
       {
@@ -923,7 +905,7 @@
           { id: 'mod_1', type: 'divider', label: '기본 정보' },
           { id: 'mod_2', type: 'single_select', label: '위원 구분', required: true, options: ['교원위원', '학부모위원', '지역위원'] },
           { id: 'mod_3', type: 'divider', label: '서명 및 동의' },
-          { id: 'mod_4', type: 'checkbox', label: '개인정보 수집 및 연수 시간 등재 동의', required: true, options: ['동의합니다.'] },
+          { id: 'mod_4', type: 'checkbox', label: '개인정보 수집 및 연수 시간 등재 동의\n\n- 수집 범위: 소속, 성명, 서명 이미지\n- 보유 기한: 연수 증빙 종료시까지', required: true, options: ['동의합니다.', '동의하지 않습니다.'] },
           { id: 'mod_5', type: 'signature', label: '참석자 자필서명', required: true }
         ],
         createdAt: '2026-06-26T12:00:00.000Z'
@@ -946,8 +928,7 @@
     const SEED_RESPONSES = {
       'tr_seed_1': [
         { timestamp: '2026-06-26T13:10:00.000Z', name: '홍길동', responses: { 'mod_2': '교원위원', 'mod_4': ['동의합니다.'], 'mod_5': DEFAULT_MOCK_SIGNATURE } },
-        { timestamp: '2026-06-26T13:15:00.000Z', name: '김영희', responses: { 'mod_2': '학부모위원', 'mod_4': ['동의합니다.'], 'mod_5': DEFAULT_MOCK_SIGNATURE } },
-        { timestamp: '2026-06-26T13:22:00.000Z', name: '이철수', responses: { 'mod_2': '지역위원', 'mod_4': ['동의합니다.'], 'mod_5': DEFAULT_MOCK_SIGNATURE } }
+        { timestamp: '2026-06-26T13:15:00.000Z', name: '김영희', responses: { 'mod_2': '학부모위원', 'mod_4': ['동의합니다.'], 'mod_5': DEFAULT_MOCK_SIGNATURE } }
       ],
       'tr_seed_2': [
         { timestamp: '2026-06-26T13:05:00.000Z', name: '강감찬', responses: { 'mod_201': '체육진로부', 'mod_202': '부장교사', 'mod_203': '13:02', 'mod_204': DEFAULT_MOCK_SIGNATURE } }
@@ -1085,7 +1066,17 @@
                 case 'submitResponse':
                   const rKey = `everyone_register_responses_${payload.trainingId}`;
                   const resps = JSON.parse(localStorage.getItem(rKey) || '[]');
-                  resps.push({ timestamp: new Date().toISOString(), name: payload.name, responses: payload.responses });
+                  
+                  // Mock 모드 첨부파일 압축/간소화 가상 저장
+                  const processedMockResponses = { ...payload.responses };
+                  Object.keys(processedMockResponses).forEach(key => {
+                    const val = processedMockResponses[key];
+                    if (val && typeof val === 'object' && val.base64 && val.filename) {
+                      processedMockResponses[key] = `[로컬첨부: ${val.filename}]`;
+                    }
+                  });
+
+                  resps.push({ timestamp: new Date().toISOString(), name: payload.name, responses: processedMockResponses });
                   localStorage.setItem(rKey, JSON.stringify(resps));
                   resolve({ success: true });
                   break;
@@ -1173,85 +1164,169 @@
       throw new Error('한글 폰트 로드 실패. 네트워크 상태를 확인해 주세요.');
     }
 
-    async function exportToPDF(training, responses, onProgress) {
-      if (onProgress) onProgress('PDF 문서 준비 중...');
-      const fontBase64 = await loadFontAsBase64(onProgress);
-      
+    async function exportToPDF(training, responses, onProgress, printOptions = {}) {
+      const selectedColumns = printOptions.selectedColumns || [];
+      const rowsPerPage = Number(printOptions.rowsPerPage || 0);
+
+      let fontBase64 = null;
+      let fontLoaded = false;
+      try {
+        fontBase64 = await loadFontAsBase64(onProgress);
+        fontLoaded = true;
+      } catch (err) {
+        console.warn('Font load failed, falling back to default font:', err);
+        showToast('행정망 방화벽 정책 등으로 인해 한글 서체 다운로드에 실패했습니다. 기본 서체(Helvetica)로 다운로드를 마칩니다. (한글이 깨져 표시될 수 있습니다)', 'warning', 6500);
+      }
+
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      
-      doc.addFileToVFS('NanumGothic.ttf', fontBase64);
-      doc.addFont('NanumGothic.ttf', 'NanumGothic', 'normal');
-      doc.setFont('NanumGothic');
-
       const margin = 20;
-      let currentY = 25;
 
-      doc.setFontSize(20);
-      doc.text('연수·협의회 출석등록부', margin, currentY);
-      currentY += 10;
+      if (fontLoaded && fontBase64) {
+        doc.addFileToVFS('NanumGothic.ttf', fontBase64);
+        doc.addFont('NanumGothic.ttf', 'NanumGothic', 'normal');
+        doc.setFont('NanumGothic');
+      }
 
-      doc.setDrawColor(79, 70, 229);
-      doc.setLineWidth(0.8);
-      doc.line(margin, currentY, 210 - margin, currentY);
-      currentY += 12;
+      // 출력용 헤더 정의
+      const activeModules = training.modules.filter(m => m.type !== 'divider' && m.type !== 'info_text' && m.type !== 'image' && m.type !== 'file_download');
+      const columns = [];
+      if (selectedColumns.includes('index')) columns.push({ header: '번호', dataKey: 'index' });
+      if (selectedColumns.includes('timestamp')) columns.push({ header: '등록일시', dataKey: 'timestamp' });
+      if (selectedColumns.includes('name')) columns.push({ header: '성명', dataKey: 'name' });
+      
+      activeModules.forEach(mod => {
+        if (selectedColumns.includes(mod.id)) {
+          columns.push({ header: mod.label, dataKey: mod.id });
+        }
+      });
 
-      doc.setFontSize(10);
-      doc.setTextColor(71, 85, 105);
-      doc.text(`연 수 명 :  ${training.title}`, margin, currentY); currentY += 7;
-      doc.text(`일      시 :  ${training.date}`, margin, currentY); currentY += 7;
-      doc.text(`장      소 :  ${training.location}`, margin, currentY); currentY += 7;
-      doc.text(`등 록 인 원 :  총 ${responses.length}명`, margin, currentY); currentY += 12;
-
-      const activeModules = training.modules.filter(m => m.type !== 'divider' && m.type !== 'info_text');
-      const columns = [{ header: '번호', dataKey: 'index' }, { header: '성명', dataKey: 'name' }];
-
-      const infoModules = activeModules.filter(m => m.type !== 'signature');
-      infoModules.forEach(mod => columns.push({ header: mod.label, dataKey: mod.id }));
-
-      const sigModule = activeModules.find(m => m.type === 'signature');
-      const hasSignature = !!sigModule;
-      if (hasSignature) columns.push({ header: sigModule.label || '서명', dataKey: 'signature' });
-
+      // 데이터 행 설계
       const rows = responses.map((resp, i) => {
-        const row = { index: String(i + 1), name: resp.name };
-        infoModules.forEach(mod => {
+        const row = {
+          index: String(i + 1),
+          timestamp: new Date(resp.timestamp).toLocaleDateString() + ' ' + new Date(resp.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+          name: resp.name
+        };
+
+        activeModules.forEach(mod => {
           const val = resp.responses[mod.id];
-          row[mod.id] = val === undefined || val === null ? '' : (Array.isArray(val) ? val.join(', ') : String(val));
+          if (mod.type === 'file_upload') {
+            if (val && typeof val === 'object' && val.filename) {
+              row[mod.id] = `[파일: ${val.filename}]`;
+            } else if (val) {
+              row[mod.id] = String(val); // Google Drive URL
+            } else {
+              row[mod.id] = '';
+            }
+          } else {
+            row[mod.id] = val === undefined || val === null ? '' : (Array.isArray(val) ? val.join(', ') : String(val));
+          }
         });
-        if (hasSignature) row['signature'] = resp.responses[sigModule.id] || '';
+        
         return row;
       });
 
-      doc.autoTable({
-        columns: columns,
-        body: rows,
-        startY: currentY,
-        margin: { left: margin, right: margin },
-        styles: { font: 'NanumGothic', fontSize: 9, cellPadding: 4, valign: 'middle', lineColor: [226, 232, 240], lineWidth: 0.1 },
-        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'normal', halign: 'center' },
-        columnStyles: { index: { width: 12, halign: 'center' }, name: { width: 22, halign: 'center' }, signature: { width: 35, halign: 'center' } },
-        didDrawCell: function (data) {
-          if (data.column.dataKey === 'signature' && data.cell.section === 'body') {
-            const imgData = data.cell.raw;
-            if (imgData && imgData.startsWith('data:image/')) {
+      // 4-1. 페이지 당 행 분할 렌더러 탑재
+      if (rowsPerPage > 0) {
+        const chunks = [];
+        for (let i = 0; i < rows.length; i += rowsPerPage) {
+          chunks.push(rows.slice(i, i + rowsPerPage));
+        }
+
+        for (let i = 0; i < chunks.length; i++) {
+          if (i > 0) doc.addPage();
+          
+          let pageStartY = 22;
+          if (i === 0) {
+            // 첫 장에만 상단 정보 기재
+            doc.setFontSize(18);
+            doc.text('연수·협의회 출석등록부', margin, 25);
+            doc.setDrawColor(79, 70, 229);
+            doc.setLineWidth(0.8);
+            doc.line(margin, 31, 210 - margin, 31);
+            
+            doc.setFontSize(9.5);
+            doc.setTextColor(71, 85, 105);
+            doc.text(`연 수 명 :  ${training.title}`, margin, 38);
+            doc.text(`일      시 :  ${training.date}`, margin, 44);
+            doc.text(`장      소 :  ${training.location}`, margin, 50);
+            doc.text(`등 록 인 원 :  총 ${responses.length}명 (페이지 ${i+1}/${chunks.length})`, margin, 56);
+            pageStartY = 62;
+          } else {
+            doc.setFontSize(8.5);
+            doc.setTextColor(148, 163, 184);
+            doc.text(`${training.title} - 출석대장 (페이지 ${i+1}/${chunks.length})`, margin, 15);
+            doc.setDrawColor(226, 232, 240);
+            doc.setLineWidth(0.2);
+            doc.line(margin, 17, 210 - margin, 17);
+            pageStartY = 22;
+          }
+
+          doc.autoTable({
+            columns: columns,
+            body: chunks[i],
+            startY: pageStartY,
+            margin: { left: margin, right: margin },
+            styles: { font: fontLoaded ? 'NanumGothic' : 'helvetica', fontSize: 8.5, cellPadding: 3.5, valign: 'middle', lineColor: [226, 232, 240], lineWidth: 0.1 },
+            headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'normal', halign: 'center' },
+            columnStyles: { index: { width: 12, halign: 'center' }, timestamp: { width: 25, halign: 'center' }, name: { width: 20, halign: 'center' }, signature: { width: 35, halign: 'center' } },
+            didDrawCell: function (data) {
+              // 서명 열 렌더링
+              if (data.cell.raw && String(data.cell.raw).startsWith('data:image/')) {
+                const imgData = data.cell.raw;
+                const cellW = data.cell.width;
+                const cellH = data.cell.height;
+                const p = 1.5;
+                try { doc.addImage(imgData, 'PNG', data.cell.x + p, data.cell.y + p, cellW - p*2, cellH - p*2); } catch (e) { console.error(e); }
+              }
+            },
+            willDrawCell: function (data) {
+              const keys = Object.keys(data.row.cells);
+              const hasSig = keys.some(k => String(data.row.cells[k].raw).startsWith('data:image/'));
+              if (hasSig) data.row.height = 14;
+            }
+          });
+        }
+      } else {
+        // 자동 나누기 모드
+        doc.setFontSize(18);
+        doc.text('연수·협의회 출석등록부', margin, 25);
+        doc.setDrawColor(79, 70, 229);
+        doc.setLineWidth(0.8);
+        doc.line(margin, 31, 210 - margin, 31);
+        
+        doc.setFontSize(9.5);
+        doc.setTextColor(71, 85, 105);
+        doc.text(`연 수 명 :  ${training.title}`, margin, 38);
+        doc.text(`일      시 :  ${training.date}`, margin, 44);
+        doc.text(`장      소 :  ${training.location}`, margin, 50);
+        doc.text(`등 록 인 원 :  총 ${responses.length}명`, margin, 56);
+
+        doc.autoTable({
+          columns: columns,
+          body: rows,
+          startY: 62,
+          margin: { left: margin, right: margin },
+          styles: { font: fontLoaded ? 'NanumGothic' : 'helvetica', fontSize: 8.5, cellPadding: 3.5, valign: 'middle', lineColor: [226, 232, 240], lineWidth: 0.1 },
+          headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'normal', halign: 'center' },
+          columnStyles: { index: { width: 12, halign: 'center' }, timestamp: { width: 25, halign: 'center' }, name: { width: 20, halign: 'center' }, signature: { width: 35, halign: 'center' } },
+          didDrawCell: function (data) {
+            if (data.cell.raw && String(data.cell.raw).startsWith('data:image/')) {
+              const imgData = data.cell.raw;
               const cellW = data.cell.width;
               const cellH = data.cell.height;
-              const padding = 2;
-              const targetW = cellW - padding * 2;
-              const targetH = cellH - padding * 2;
-              const x = data.cell.x + padding;
-              const y = data.cell.y + padding;
-              try { doc.addImage(imgData, 'PNG', x, y, targetW, targetH); } catch (e) { console.error(e); }
+              const p = 1.5;
+              try { doc.addImage(imgData, 'PNG', data.cell.x + p, data.cell.y + p, cellW - p*2, cellH - p*2); } catch (e) { console.error(e); }
             }
+          },
+          willDrawCell: function (data) {
+            const keys = Object.keys(data.row.cells);
+            const hasSig = keys.some(k => String(data.row.cells[k].raw).startsWith('data:image/'));
+            if (hasSig) data.row.height = 14;
           }
-        },
-        willDrawCell: function (data) {
-          if (data.column.dataKey === 'signature' && data.cell.section === 'body') {
-            data.row.height = 14;
-          }
-        }
-      });
+        });
+      }
 
       const sanitizedTitle = training.title.replace(/[\\/:*?"<>|]/g, '_');
       doc.save(`출석등록부_${sanitizedTitle}.pdf`);
@@ -1410,10 +1485,11 @@
       wrapper.className = 'form-group';
       wrapper.dataset.id = mod.id;
 
-      const showLabel = mod.type !== 'divider' && mod.type !== 'info_text';
+      const showLabel = mod.type !== 'divider' && mod.type !== 'info_text' && mod.type !== 'image' && mod.type !== 'file_download';
       if (showLabel) {
         const labelEl = document.createElement('label');
         labelEl.className = 'form-label';
+        labelEl.style.whiteSpace = 'pre-wrap'; // 줄바꿈 지원 활성화
         labelEl.innerHTML = `${mod.label} ${mod.required ? '<span class="required">*</span>' : ''}`;
         wrapper.appendChild(labelEl);
       }
@@ -1530,12 +1606,121 @@
           };
           break;
         }
+        case 'image': {
+          const box = document.createElement('div');
+          box.style.width = '100%';
+          box.style.display = 'flex';
+          box.style.flexDirection = 'column';
+          box.style.gap = '0.5rem';
+          if (mod.label) {
+            const lbl = document.createElement('div');
+            lbl.style.fontSize = '0.85rem';
+            lbl.style.color = 'var(--text-secondary)';
+            lbl.style.whiteSpace = 'pre-wrap';
+            lbl.textContent = mod.label;
+            box.appendChild(lbl);
+          }
+          if (mod.src) {
+            const img = document.createElement('img');
+            img.src = mod.src;
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+            img.style.borderRadius = 'var(--radius-sm)';
+            img.style.border = '1px solid var(--border-color)';
+            box.appendChild(img);
+          } else {
+            const placeholder = document.createElement('div');
+            placeholder.style.padding = '2rem';
+            placeholder.style.border = '1px dashed var(--border-color)';
+            placeholder.style.textAlign = 'center';
+            placeholder.style.color = 'var(--text-muted)';
+            placeholder.textContent = '[등록된 안내 이미지가 없습니다]';
+            box.appendChild(placeholder);
+          }
+          wrapper.appendChild(box);
+          getValue = () => '';
+          validate = () => null;
+          break;
+        }
+        case 'file_download': {
+          const box = document.createElement('div');
+          box.style.width = '100%';
+          box.style.display = 'flex';
+          box.style.flexDirection = 'column';
+          box.style.gap = '0.5rem';
+          if (mod.label) {
+            const lbl = document.createElement('div');
+            lbl.style.fontSize = '0.85rem';
+            lbl.style.color = 'var(--text-secondary)';
+            lbl.style.whiteSpace = 'pre-wrap';
+            lbl.textContent = mod.label;
+            box.appendChild(lbl);
+          }
+          if (mod.fileData) {
+            const link = document.createElement('a');
+            link.href = mod.fileData;
+            link.download = mod.fileName || '첨부파일';
+            link.className = 'btn btn-outline btn-sm';
+            link.style.width = 'fit-content';
+            link.innerHTML = `📁 ${mod.fileName || '안내 자료 다운로드'} (클릭)`;
+            box.appendChild(link);
+          } else {
+            const placeholder = document.createElement('div');
+            placeholder.style.padding = '1rem';
+            placeholder.style.border = '1px dashed var(--border-color)';
+            placeholder.style.textAlign = 'center';
+            placeholder.style.color = 'var(--text-muted)';
+            placeholder.textContent = '[등록된 안내 첨부파일이 없습니다]';
+            box.appendChild(placeholder);
+          }
+          wrapper.appendChild(box);
+          getValue = () => '';
+          validate = () => null;
+          break;
+        }
+        case 'file_upload': {
+          const fileIn = document.createElement('input');
+          fileIn.type = 'file';
+          fileIn.className = 'form-control';
+          wrapper.appendChild(fileIn);
+          
+          let fileBase64 = null;
+          let fileName = null;
+          
+          fileIn.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              fileName = file.name;
+              const reader = new FileReader();
+              reader.onload = (ev) => {
+                fileBase64 = ev.target.result;
+              };
+              reader.readAsDataURL(file);
+            } else {
+              fileBase64 = null;
+              fileName = null;
+            }
+          });
+
+          getValue = () => {
+            if (!fileBase64) return null;
+            return { filename: fileName, base64: fileBase64 };
+          };
+          validate = () => {
+            if (mod.required && !fileBase64) {
+              return `${mod.label} 증빙서류 파일을 첨부해 주세요.`;
+            }
+            return null;
+          };
+          break;
+        }
         case 'divider': {
           const div = document.createElement('div');
           div.style.marginTop = '2rem'; div.style.marginBottom = '1rem';
           if (mod.label) {
             const h = document.createElement('h3');
             h.style.fontSize = '1.05rem'; h.style.color = 'var(--color-primary)';
+            h.style.whiteSpace = 'pre-wrap';
             h.textContent = mod.label; div.appendChild(h);
           }
           const hr = document.createElement('hr');
@@ -1652,7 +1837,7 @@
         const mods = this.selectedTraining.modules || [];
         
         mods.forEach(mod => {
-          if (mod.type === 'divider' || mod.type === 'info_text') return;
+          if (mod.type === 'divider' || mod.type === 'info_text' || mod.type === 'image' || mod.type === 'file_download') return;
           const rend = this.renderedModules[mod.id];
           if (rend) {
             const err = rend.validate();
@@ -1978,11 +2163,14 @@
           case 'dropdown': label = '드롭다운'; extra = { options: ['선택 1', '선택 2'] }; break;
           case 'date': label = '날짜 입력'; break;
           case 'time': label = '시간 입력'; break;
+          case 'image': label = '안내 이미지 문구'; extra = { src: '' }; break;
+          case 'file_download': label = '안내 첨부파일 다운로드'; extra = { fileData: '', fileName: '안내문서.pdf' }; break;
+          case 'file_upload': label = '증빙서류 파일 첨부'; extra = {}; break;
           case 'divider': label = '섹션 제목'; break;
           case 'info_text': label = '이곳에 연수 안내글을 적으세요.'; break;
         }
 
-        const newMod = { id, type, label, required: type !== 'divider' && type !== 'info_text', ...extra };
+        const newMod = { id, type, label, required: type !== 'divider' && type !== 'info_text' && type !== 'image' && type !== 'file_download', ...extra };
         this.modules.push(newMod);
         this.selectedModuleId = id;
         this.refreshCanvas();
@@ -2015,6 +2203,15 @@
           const active = mod.id === this.selectedModuleId;
           item.className = `builder-item ${active ? 'selected' : ''}`;
           
+          let previewHTML = '';
+          if (mod.type === 'image' && mod.src) {
+            previewHTML = `<img src="${mod.src}" style="max-height:80px; max-width:100%; border:1px solid #ddd; display:block; margin-top:5px; border-radius:4px;">`;
+          } else if (mod.type === 'file_download') {
+            previewHTML = `<div style="font-size:0.8rem; color:var(--color-primary); margin-top:5px;">📥 다운로드: ${mod.fileName || ''}</div>`;
+          } else if (mod.type === 'file_upload') {
+            previewHTML = `<div style="font-size:0.8rem; color:var(--text-muted); margin-top:5px;">📎 [사용자 파일 첨부 구역]</div>`;
+          }
+
           item.innerHTML = `
             <div class="builder-item-header">
               <span class="builder-item-title">${mod.type}</span>
@@ -2024,7 +2221,8 @@
                 <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();" id="del-${mod.id}">🗑</button>
               </div>
             </div>
-            <div style="font-weight:600;">${mod.label || '라벨 없음'} ${mod.required ? '<span style="color:var(--color-danger);">*</span>' : ''}</div>
+            <div style="font-weight:600; white-space:pre-wrap;">${mod.label || '라벨 없음'} ${mod.required ? '<span style="color:var(--color-danger);">*</span>' : ''}</div>
+            ${previewHTML}
           `;
           
           item.addEventListener('click', () => {
@@ -2050,18 +2248,16 @@
         if (!mod) return;
 
         const isLayout = mod.type === 'divider' || mod.type === 'info_text';
+        
+        // 1-1. 여러줄 필드 라벨 편집용 textarea 구성
         let html = `
           <div class="form-group">
-            <label class="form-label">${isLayout ? '표시 내용' : '필드명 (라벨)'}</label>
-            ${mod.type === 'info_text' ? `
-              <textarea class="form-control" id="edit-lbl">${mod.label || ''}</textarea>
-            ` : `
-              <input type="text" class="form-control" id="edit-lbl" value="${mod.label || ''}">
-            `}
+            <label class="form-label">${isLayout ? '표시 내용' : '필드명 (라벨 여러 줄 가능)'}</label>
+            <textarea class="form-control" id="edit-lbl" rows="3">${mod.label || ''}</textarea>
           </div>
         `;
 
-        if (!isLayout) {
+        if (!isLayout && mod.type !== 'image' && mod.type !== 'file_download') {
           html += `
             <div class="form-group">
               <label class="option-control">
@@ -2076,6 +2272,32 @@
             <div class="form-group">
               <label class="form-label">기본 안내문구(Placeholder)</label>
               <input type="text" class="form-control" id="edit-ph" value="${mod.placeholder || ''}">
+            </div>
+          `;
+        }
+
+        // 이미지 삽입 모듈 설정
+        if (mod.type === 'image') {
+          html += `
+            <div class="form-group">
+              <label class="form-label">안내용 이미지 등록 (PNG/JPG)</label>
+              <input type="file" accept="image/*" class="form-control" id="edit-img-file">
+              ${mod.src ? `<img src="${mod.src}" style="max-width:100%; height:auto; margin-top:0.5rem; max-height:120px; border:1px solid #ddd; border-radius:4px;">` : ''}
+            </div>
+          `;
+        }
+
+        // 관리자 첨부파일 다운로드 모듈 설정
+        if (mod.type === 'file_download') {
+          html += `
+            <div class="form-group">
+              <label class="form-label">다운로드용 표시 파일명</label>
+              <input type="text" class="form-control" id="edit-file-name" value="${mod.fileName || ''}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">파일 등록 (HWP, PDF, ZIP 등)</label>
+              <input type="file" class="form-control" id="edit-doc-file">
+              ${mod.fileData ? `<div style="font-size:0.75rem; color:var(--color-success); margin-top:0.5rem;">✔️ 파일이 업로드되어 있습니다.</div>` : ''}
             </div>
           `;
         }
@@ -2109,6 +2331,47 @@
 
         const ph = this.sidebar.querySelector('#edit-ph');
         if (ph) ph.addEventListener('input', (e) => mod.placeholder = e.target.value);
+
+        // 이미지 파일 변화 리스너
+        const imgFile = this.sidebar.querySelector('#edit-img-file');
+        if (imgFile) {
+          imgFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (ev) => {
+                mod.src = ev.target.result;
+                this.refreshCanvas(); this.refreshSidebar();
+              };
+              reader.readAsDataURL(file);
+            }
+          });
+        }
+
+        // 다운로드용 파일 변화 리스너
+        const docFile = this.sidebar.querySelector('#edit-doc-file');
+        const docName = this.sidebar.querySelector('#edit-file-name');
+        if (docName) {
+          docName.addEventListener('input', (e) => {
+            mod.fileName = e.target.value;
+            this.refreshCanvas();
+          });
+        }
+        if (docFile) {
+          docFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              if (!mod.fileName) mod.fileName = file.name;
+              if (docName) docName.value = mod.fileName;
+              const reader = new FileReader();
+              reader.onload = (ev) => {
+                mod.fileData = ev.target.result;
+                this.refreshCanvas(); this.refreshSidebar();
+              };
+              reader.readAsDataURL(file);
+            }
+          });
+        }
 
         const addOpt = this.sidebar.querySelector('#btn-add-opt');
         if (addOpt) {
@@ -2164,7 +2427,7 @@
       }
       render() {
         const shareLink = this.getShareLink();
-        const activeMods = (this.training.modules || []).filter(m => m.type !== 'divider' && m.type !== 'info_text');
+        const activeMods = (this.training.modules || []).filter(m => m.type !== 'divider' && m.type !== 'info_text' && m.type !== 'image' && m.type !== 'file_download');
 
         this.container.innerHTML = `
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
@@ -2192,7 +2455,7 @@
 
           <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-bottom:1rem;">
             <button class="btn btn-secondary btn-sm" id="btn-csv" ${this.responses.length === 0 ? 'disabled' : ''}>CSV 내보내기</button>
-            <button class="btn btn-primary btn-sm" id="btn-pdf" ${this.responses.length === 0 ? 'disabled' : ''}>인쇄용 PDF 출력</button>
+            <button class="btn btn-primary btn-sm" id="btn-pdf-settings" ${this.responses.length === 0 ? 'disabled' : ''}>인쇄용 PDF 출력</button>
           </div>
 
           ${this.responses.length === 0 ? `
@@ -2222,6 +2485,44 @@
             </div>
           `}
 
+          <!-- [4-2] PDF 인쇄용 세부 설정 모달 설계 -->
+          <div class="modal-overlay" id="pdf-settings-modal" style="display:none;">
+            <div class="modal-container" style="max-width:460px;">
+              <div class="modal-header">
+                <h3 class="modal-title">PDF 인쇄 상세 옵션</h3>
+                <button class="modal-close" id="btn-pdf-modal-close">&times;</button>
+              </div>
+              <div class="modal-body">
+                <div class="form-group">
+                  <label class="form-label" style="margin-bottom:0.75rem;">출력할 컬럼 선택</label>
+                  <div class="checkbox-group" id="pdf-cols-checks" style="max-height:160px; overflow-y:auto; border:1px solid var(--border-color); padding:0.75rem; border-radius:var(--radius-sm);">
+                    <label class="option-control"><input type="checkbox" value="index" checked> 번호 (연번)</label>
+                    <label class="option-control"><input type="checkbox" value="timestamp" checked> 등록일시</label>
+                    <label class="option-control"><input type="checkbox" value="name" checked> 성명</label>
+                    ${activeMods.map(m => `
+                      <label class="option-control"><input type="checkbox" value="${m.id}" checked> ${m.label}</label>
+                    `).join('')}
+                  </div>
+                </div>
+                <div class="form-group" style="margin-top:1.25rem;">
+                  <label class="form-label" for="pdf-rows-per-page">페이지당 행(줄) 수 지정</label>
+                  <select class="form-select" id="pdf-rows-per-page">
+                    <option value="0">제한 없음 (기본 자동 배분)</option>
+                    <option value="5">5행 배치 (넉넉하게)</option>
+                    <option value="10" selected>10행 배치 (표준 양식형)</option>
+                    <option value="15">15행 배치</option>
+                    <option value="20">20행 배치 (오밀조밀)</option>
+                    <option value="30">30행 배치 (초고밀도)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="btn-pdf-modal-cancel">취소</button>
+                <button type="button" class="btn btn-primary" id="btn-pdf-modal-start">출력 시작</button>
+              </div>
+            </div>
+          </div>
+
           <div id="loading-overlay" class="modal-overlay" style="display:none;">
             <div class="card" style="max-width:300px; text-align:center; padding:2rem;">
               <h4 style="margin-bottom:0.5rem;">PDF 생성 작업 중</h4>
@@ -2244,11 +2545,21 @@
           }
           return '<span style="color:var(--text-muted);">[서명 누락]</span>';
         }
+        if (type === 'file_upload') {
+          if (val && typeof val === 'object' && val.base64 && val.filename) {
+            // 로컬 Mock 저장본 (다운로드 링크 생성)
+            return `<a href="${val.base64}" download="${val.filename}" style="font-size:0.8rem; color:var(--color-primary); font-weight:600;">📁 ${val.filename}</a>`;
+          } else if (val && (val.startsWith('http://') || val.startsWith('https://'))) {
+            // 구글 드라이브 업로드 저장본 링크
+            return `<a href="${val}" target="_blank" style="font-size:0.8rem; color:var(--color-primary); font-weight:600;">📁 파일 열기 (드라이브)</a>`;
+          }
+          return `<span style="color:var(--text-muted); font-size:0.8rem;">${val}</span>`;
+        }
         return Array.isArray(val) ? val.join(', ') : String(val);
       }
       getShareLink() {
         const loc = window.location;
-        const base = loc.href.split('#')[0]; // 해시 이전 경로 추출
+        const base = loc.href.split('#')[0];
         return `${base}#/user?id=${this.trainingId}`;
       }
       bindEvents() {
@@ -2265,12 +2576,19 @@
         if (csv) {
           csv.addEventListener('click', () => {
             const hdrs = ['연번', '제출시간', '이름'];
-            const activeMods = (this.training.modules || []).filter(m => m.type !== 'divider' && m.type !== 'info_text');
+            const activeMods = (this.training.modules || []).filter(m => m.type !== 'divider' && m.type !== 'info_text' && m.type !== 'image' && m.type !== 'file_download');
             activeMods.forEach(m => hdrs.push(m.label));
 
             const rows = this.responses.map((resp, idx) => {
               const row = [String(idx + 1), this.fmtDate(resp.timestamp), resp.name];
-              activeMods.forEach(m => row.push(resp.responses[m.id]));
+              activeMods.forEach(m => {
+                const val = resp.responses[m.id];
+                if (m.type === 'file_upload' && val && typeof val === 'object') {
+                  row.push(val.filename || '');
+                } else {
+                  row.push(val);
+                }
+              });
               return row;
             });
             exportToCSV(`출석대장_${this.training.title.replace(/[\\/:*?"<>|]/g, '_')}.csv`, hdrs, rows);
@@ -2278,15 +2596,41 @@
           });
         }
 
-        const pdf = this.container.querySelector('#btn-pdf');
-        if (pdf) {
-          pdf.addEventListener('click', async () => {
+        // PDF 인쇄 모달 제어 바인딩
+        const pdfSettingsBtn = this.container.querySelector('#btn-pdf-settings');
+        const pdfModal = this.container.querySelector('#pdf-settings-modal');
+        const pdfModalClose = this.container.querySelector('#btn-pdf-modal-close');
+        const pdfModalCancel = this.container.querySelector('#btn-pdf-modal-cancel');
+        const pdfModalStart = this.container.querySelector('#btn-pdf-modal-start');
+
+        if (pdfSettingsBtn) {
+          pdfSettingsBtn.addEventListener('click', () => pdfModal.style.display = 'flex');
+        }
+        
+        const closePdfModal = () => pdfModal.style.display = 'none';
+        if (pdfModalClose) pdfModalClose.addEventListener('click', closePdfModal);
+        if (pdfModalCancel) pdfModalCancel.addEventListener('click', closePdfModal);
+
+        if (pdfModalStart) {
+          pdfModalStart.addEventListener('click', async () => {
+            closePdfModal();
             const ovr = this.container.querySelector('#loading-overlay');
             const msg = this.container.querySelector('#loading-msg');
             ovr.style.display = 'flex';
+
+            // 선택된 인쇄 컬럼 목록 수집
+            const checks = this.container.querySelectorAll('#pdf-cols-checks input[type="checkbox"]:checked');
+            const selectedColumns = Array.from(checks).map(cb => cb.value);
+
+            // 한 페이지 행 지정 수 수집
+            const rowsPerPage = Number(this.container.querySelector('#pdf-rows-per-page').value);
+
             try {
-              await exportToPDF(this.training, this.responses, (p) => { if(p) msg.textContent = p; });
-              showToast('PDF 인쇄 파일을 전송했습니다.', 'success');
+              await exportToPDF(this.training, this.responses, (p) => { if(p) msg.textContent = p; }, {
+                selectedColumns,
+                rowsPerPage
+              });
+              showToast('PDF 인쇄가 완료되었습니다.', 'success');
             } catch(err) { showToast(err.message, 'danger'); }
             finally { ovr.style.display = 'none'; }
           });
@@ -2304,6 +2648,9 @@
       { type: 'dropdown', name: '▼ 드롭다운 선택' },
       { type: 'date', name: '📅 날짜 선택' },
       { type: 'time', name: '⏰ 시간 입력' },
+      { type: 'image', name: '🖼 안내용 이미지 삽입' },
+      { type: 'file_download', name: '📥 안내 첨부파일 제공' },
+      { type: 'file_upload', name: '📎 증빙서류 첨부 업로드' },
       { type: 'divider', name: '― 구분선 섹션' },
       { type: 'info_text', name: 'ℹ 안내 텍스트' }
     ];
