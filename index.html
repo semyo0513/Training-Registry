@@ -1698,8 +1698,10 @@
                       if (mod.type === 'file_upload') {
                         if (val && typeof val === 'object' && val.filename) {
                           return `<td>📁 ${val.filename}</td>`;
+                        } else if (val && (val.startsWith('http://') || val.startsWith('https://'))) {
+                          return `<td><a href="${val}" target="_blank" style="color:var(--color-primary); text-decoration:none; font-weight:600;">📁 첨부파일 (링크)</a></td>`;
                         } else if (val) {
-                          return `<td>📁 첨부파일</td>`;
+                          return `<td>📁 ${val}</td>`;
                         }
                         return `<td>-</td>`;
                       }
@@ -2070,10 +2072,10 @@
           if (mod.fileData) {
             const link = document.createElement('a');
             link.href = mod.fileData;
-            link.download = mod.fileName || '첨부파일';
+            link.target = '_blank';
             link.className = 'btn btn-outline btn-sm';
             link.style.width = 'fit-content';
-            link.innerHTML = `📁 ${mod.fileName || '안내 자료 다운로드'} (클릭)`;
+            link.innerHTML = `📥 ${mod.fileName || '안내 자료 다운로드'} (새창)`;
             box.appendChild(link);
           } else {
             const placeholder = document.createElement('div');
@@ -2081,7 +2083,7 @@
             placeholder.style.border = '1px dashed var(--border-color)';
             placeholder.style.textAlign = 'center';
             placeholder.style.color = 'var(--text-muted)';
-            placeholder.textContent = '[등록된 안내 첨부파일이 없습니다]';
+            placeholder.textContent = '[등록된 안내 첨부파일 링크가 없습니다]';
             box.appendChild(placeholder);
           }
           wrapper.appendChild(box);
@@ -2090,36 +2092,34 @@
           break;
         }
         case 'file_upload': {
-          const fileIn = document.createElement('input');
-          fileIn.type = 'file';
-          fileIn.className = 'form-control';
-          wrapper.appendChild(fileIn);
-          
-          let fileBase64 = null;
-          let fileName = null;
-          
-          fileIn.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-              fileName = file.name;
-              const reader = new FileReader();
-              reader.onload = (ev) => {
-                fileBase64 = ev.target.result;
-              };
-              reader.readAsDataURL(file);
-            } else {
-              fileBase64 = null;
-              fileName = null;
-            }
-          });
+          const container = document.createElement('div');
+          container.style.display = 'flex';
+          container.style.flexDirection = 'column';
+          container.style.gap = '0.375rem';
 
-          getValue = () => {
-            if (!fileBase64) return null;
-            return { filename: fileName, base64: fileBase64 };
-          };
+          const desc = document.createElement('div');
+          desc.style.fontSize = '0.75rem';
+          desc.style.color = 'var(--text-secondary)';
+          desc.style.lineHeight = '1.4';
+          desc.innerHTML = `구글 드라이브 등에 파일을 업로드하고, <b>'링크가 있는 모든 사용자에게 공개'</b>로 공유 설정을 변경한 후 해당 링크를 아래에 복사해 넣어주세요.`;
+          container.appendChild(desc);
+
+          const input = document.createElement('input');
+          input.type = 'url';
+          input.className = 'form-control';
+          input.placeholder = 'https://drive.google.com/file/d/.../view?usp=sharing';
+          container.appendChild(input);
+
+          wrapper.appendChild(container);
+          
+          getValue = () => input.value.trim();
           validate = () => {
-            if (mod.required && !fileBase64) {
-              return `${mod.label} 증빙서류 파일을 첨부해 주세요.`;
+            const val = getValue();
+            if (mod.required && !val) {
+              return `${mod.label} 구글 드라이브 공유 링크를 입력해 주세요.`;
+            }
+            if (val && !val.startsWith('http://') && !val.startsWith('https://')) {
+              return `${mod.label} 올바른 URL 형식(http:// 또는 https://)으로 입력해 주세요.`;
             }
             return null;
           };
@@ -3104,13 +3104,12 @@
         if (mod.type === 'file_download') {
           html += `
             <div class="form-group">
-              <label class="form-label">다운로드용 표시 파일명</label>
+              <label class="form-label">표시용 안내 문구 (예: 교육과정 안내자료 다운로드)</label>
               <input type="text" class="form-control" id="edit-file-name" value="${mod.fileName || ''}">
             </div>
             <div class="form-group">
-              <label class="form-label">파일 등록 (HWP, PDF, ZIP 등)</label>
-              <input type="file" class="form-control" id="edit-doc-file">
-              ${mod.fileData ? `<div style="font-size:0.75rem; color:var(--color-success); margin-top:0.5rem;">✔️ 파일이 업로드되어 있습니다.</div>` : ''}
+              <label class="form-label">구글 드라이브 등 공유 파일 링크 주소 (URL)</label>
+              <input type="url" class="form-control" id="edit-file-url" value="${mod.fileData || ''}" placeholder="https://drive.google.com/file/d/.../view?usp=sharing">
             </div>
           `;
         }
@@ -3161,28 +3160,19 @@
           });
         }
 
-        // 다운로드용 파일 변화 리스너
-        const docFile = this.sidebar.querySelector('#edit-doc-file');
+        // 다운로드용 파일 URL 변화 리스너
         const docName = this.sidebar.querySelector('#edit-file-name');
+        const docUrl = this.sidebar.querySelector('#edit-file-url');
         if (docName) {
           docName.addEventListener('input', (e) => {
             mod.fileName = e.target.value;
             this.refreshCanvas();
           });
         }
-        if (docFile) {
-          docFile.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-              if (!mod.fileName) mod.fileName = file.name;
-              if (docName) docName.value = mod.fileName;
-              const reader = new FileReader();
-              reader.onload = (ev) => {
-                mod.fileData = ev.target.result;
-                this.refreshCanvas(); this.refreshSidebar();
-              };
-              reader.readAsDataURL(file);
-            }
+        if (docUrl) {
+          docUrl.addEventListener('input', (e) => {
+            mod.fileData = e.target.value.trim();
+            this.refreshCanvas();
           });
         }
 
