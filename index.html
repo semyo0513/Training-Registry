@@ -1113,14 +1113,32 @@
 
               switch (action) {
                 case 'adminLogin':
-                  const savedPw = localStorage.getItem('everyone_register_admin_pw') || '1234';
-                  if (payload.password === savedPw) {
-                    const token = 'mock_token_' + Math.random().toString(36).substring(2);
-                    localStorage.setItem('everyone_register_session', token);
-                    resolve({ success: true, token });
-                  } else {
-                    reject(new Error('비밀번호가 일치하지 않습니다.'));
+                  let admins = JSON.parse(localStorage.getItem('everyone_register_admins') || '[]');
+                  if (admins.length === 0) {
+                    // Seed superadmin
+                    admins.push({ id: 'admin', password: '1234', orgName: '시스템 관리자' });
+                    localStorage.setItem('everyone_register_admins', JSON.stringify(admins));
                   }
+                  const matchedAdmin = admins.find(a => a.id === payload.id && a.password === payload.password);
+                  if (matchedAdmin) {
+                    resolve({ success: true, orgId: matchedAdmin.id, orgName: matchedAdmin.orgName });
+                  } else {
+                    reject(new Error('아이디 또는 비밀번호가 일치하지 않습니다.'));
+                  }
+                  break;
+                case 'adminRegister':
+                  let adminsReg = JSON.parse(localStorage.getItem('everyone_register_admins') || '[]');
+                  if (adminsReg.length === 0) {
+                    adminsReg.push({ id: 'admin', password: '1234', orgName: '시스템 관리자' });
+                  }
+                  if (adminsReg.some(a => a.id === payload.id)) {
+                    reject(new Error('이미 존재하는 기관 아이디입니다.'));
+                    break;
+                  }
+                  const newAdmin = { id: payload.id, password: payload.password, orgName: payload.orgName };
+                  adminsReg.push(newAdmin);
+                  localStorage.setItem('everyone_register_admins', JSON.stringify(adminsReg));
+                  resolve({ success: true, orgId: payload.id, orgName: payload.orgName });
                   break;
                 case 'getTrainings':
                   resolve(trainings);
@@ -1139,6 +1157,8 @@
                     location: payload.location,
                     modules: payload.modules || [],
                     participants: payload.participants || [],
+                    orgId: payload.orgId || 'admin',
+                    orgName: payload.orgName || '시스템 관리자',
                     createdAt: new Date().toISOString()
                   };
                   trainings.unshift(newTr);
@@ -1160,6 +1180,8 @@
                     trainings[idxTr].date = payload.date;
                     trainings[idxTr].location = payload.location;
                     trainings[idxTr].participants = payload.participants || [];
+                    if (payload.orgId) trainings[idxTr].orgId = payload.orgId;
+                    if (payload.orgName) trainings[idxTr].orgName = payload.orgName;
                     localStorage.setItem(trainingsKey, JSON.stringify(trainings));
                     resolve(trainings[idxTr]);
                   } else reject(new Error('연수를 찾을 수 없습니다.'));
@@ -1199,12 +1221,13 @@
         });
       },
 
-      login(password) { return this._request('adminLogin', { password }); },
+      login(id, password) { return this._request('adminLogin', { id, password }); },
+      register(id, password, orgName) { return this._request('adminRegister', { id, password, orgName }); },
       getTrainings() { return this._request('getTrainings'); },
       getForm(id) { return this._request('getForm', { id }); },
       submitResponse(tId, name, resps) { return this._request('submitResponse', { trainingId: tId, name, responses: resps }); },
-      createTraining(title, date, location, modules = [], participants = []) { return this._request('createTraining', { title, date, location, modules, participants }); },
-      updateTraining(id, title, date, location, participants = []) { return this._request('updateTraining', { id, title, date, location, participants }); },
+      createTraining(title, date, location, modules = [], participants = [], orgId, orgName) { return this._request('createTraining', { title, date, location, modules, participants, orgId, orgName }); },
+      updateTraining(id, title, date, location, participants = [], orgId, orgName) { return this._request('updateTraining', { id, title, date, location, participants, orgId, orgName }); },
       deleteTraining(id) { return this._request('deleteTraining', { id }); },
       updateForm(id, modules) { return this._request('updateForm', { id, modules }); },
       getResponses(id) { return this._request('getResponses', { id }); },
@@ -1283,6 +1306,11 @@
           const response = await fetch(path);
           if (response.ok) {
             const blob = await response.blob();
+            // 간단한 TTF 유효성 검사 (HTML 문서 반환 차단)
+            const textHeader = await blob.slice(0, 100).text();
+            if (textHeader.trim().startsWith('<') || textHeader.includes('html') || textHeader.includes('DOCTYPE')) {
+              throw new Error('Not a valid TTF file (HTML returned)');
+            }
             const base64 = await new Promise((resolve, reject) => {
               const reader = new FileReader();
               reader.onloadend = () => resolve(reader.result.substring(reader.result.indexOf(',') + 1));
@@ -1309,6 +1337,11 @@
           const response = await fetch(FONT_URLS[i]);
           if (response.ok) {
             const blob = await response.blob();
+            // 간단한 TTF 유효성 검사 (HTML 문서 반환 차단)
+            const textHeader = await blob.slice(0, 100).text();
+            if (textHeader.trim().startsWith('<') || textHeader.includes('html') || textHeader.includes('DOCTYPE')) {
+              throw new Error('Not a valid TTF file (HTML returned)');
+            }
             const base64 = await new Promise((resolve, reject) => {
               const reader = new FileReader();
               reader.onloadend = () => resolve(reader.result.substring(reader.result.indexOf(',') + 1));
@@ -1498,6 +1531,206 @@
       if (onProgress) onProgress(null);
     }
 
+    function printHTML(training, responses, printOptions = {}) {
+      const selectedColumns = printOptions.selectedColumns || [];
+      const rowsPerPage = Number(printOptions.rowsPerPage || 0);
+
+      const printWin = window.open('', '_blank');
+      if (!printWin) {
+        showToast('팝업 차단이 활성화되어 있어 인쇄 창을 열 수 없습니다. 브라우저 설정에서 팝업을 허용해주세요.', 'danger');
+        return;
+      }
+      
+      const activeModules = training.modules.filter(m => m.type !== 'divider' && m.type !== 'info_text' && m.type !== 'image' && m.type !== 'file_download');
+      
+      const columns = [];
+      if (selectedColumns.includes('index')) columns.push('번호');
+      if (selectedColumns.includes('timestamp')) columns.push('등록일시');
+      if (selectedColumns.includes('name')) columns.push('성명');
+      activeModules.forEach(mod => {
+        if (selectedColumns.includes(mod.id)) {
+          columns.push(mod.label);
+        }
+      });
+
+      let pages = [];
+      if (rowsPerPage > 0) {
+        for (let i = 0; i < responses.length; i += rowsPerPage) {
+          pages.push(responses.slice(i, i + rowsPerPage));
+        }
+      } else {
+        pages = [responses];
+      }
+
+      let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>출석대장_${training.title}</title>
+          <style>
+            @media print {
+              .page-break { page-break-after: always; }
+              body { margin: 10mm; }
+            }
+            body {
+              font-family: 'KoPubWorld Batang', 'Malgun Gothic', -apple-system, sans-serif;
+              color: #000;
+              margin: 20px;
+            }
+            .header-info {
+              margin-bottom: 20px;
+            }
+            .header-info h1 {
+              font-size: 24px;
+              margin: 0 0 10px 0;
+              text-align: center;
+              font-weight: bold;
+            }
+            .info-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+              font-size: 13px;
+            }
+            .info-table td {
+              border: 1px solid #ccc;
+              padding: 6px 10px;
+            }
+            .info-table td.label {
+              font-weight: bold;
+              background-color: #f5f5f5;
+              width: 15%;
+              text-align: center;
+            }
+            .data-table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 12px;
+            }
+            .data-table th, .data-table td {
+              border: 1px solid #000;
+              padding: 8px 10px;
+              text-align: center;
+            }
+            .data-table th {
+              background-color: #eee;
+              font-weight: bold;
+            }
+            .signature-img {
+              height: 28px;
+              max-width: 80px;
+              object-fit: contain;
+            }
+            .footer-info {
+              margin-top: 10px;
+              font-size: 11px;
+              color: #555;
+              text-align: right;
+            }
+          </style>
+        </head>
+        <body>
+      `;
+
+      pages.forEach((pageResponses, pageIdx) => {
+        const isFirstPage = pageIdx === 0;
+        const pageBreakClass = (pageIdx < pages.length - 1) ? 'page-break' : '';
+
+        html += \`<div class="\${pageBreakClass}" style="padding-bottom: 20px;">\`;
+
+        if (isFirstPage || rowsPerPage === 0) {
+          html += \`
+            <div class="header-info">
+              <h1>연수·협의회 출석등록부</h1>
+              <table class="info-table">
+                <tr>
+                  <td class="label">연수·회의명</td>
+                  <td>\${training.title}</td>
+                  <td class="label">일시</td>
+                  <td>\${training.date}</td>
+                </tr>
+                <tr>
+                  <td class="label">장소</td>
+                  <td>\${training.location}</td>
+                  <td class="label">등록 인원</td>
+                  <td>총 \${responses.length}명 \${pages.length > 1 ? \`(페이지 \${pageIdx + 1}/\${pages.length})\` : ''}</td>
+                </tr>
+              </table>
+            </div>
+          \`;
+        } else {
+          html += \`
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #ccc; padding-bottom:5px; margin-bottom:15px; font-size:12px; color:#666;">
+              <span>\${training.title} - 출석대장</span>
+              <span>페이지 \${pageIdx + 1} / \${pages.length}</span>
+            </div>
+          \`;
+        }
+
+        html += \`
+          <table class="data-table">
+            <thead>
+              <tr>
+                \${columns.map(col => \`<th>\${col}</th>\`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              \${pageResponses.map((resp, pRespIdx) => {
+                const globalIdx = (rowsPerPage > 0) ? (pageIdx * rowsPerPage + pRespIdx) : pRespIdx;
+                
+                return \\\`
+                  <tr>
+                    \${selectedColumns.includes('index') ? \\\`<td>\\\${globalIdx + 1}</td>\\\` : ''}
+                    \${selectedColumns.includes('timestamp') ? \\\`<td>\\\${new Date(resp.timestamp).toLocaleDateString() + ' ' + new Date(resp.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>\\\` : ''}
+                    \${selectedColumns.includes('name') ? \\\`<td style="font-weight:bold;">\\\${resp.name}</td>\\\` : ''}
+                    \${activeModules.map(mod => {
+                      if (!selectedColumns.includes(mod.id)) return '';
+                      const val = resp.responses[mod.id];
+                      
+                      if (mod.type === 'signature') {
+                        if (val && val.startsWith('data:image/')) {
+                          return \\\`<td><img class="signature-img" src="\\\${val}" alt="서명"></td>\\\`;
+                        }
+                        return \\\`<td>[서명 누락]</td>\\\`;
+                      }
+                      
+                      if (mod.type === 'file_upload') {
+                        if (val && typeof val === 'object' && val.filename) {
+                          return \\\`<td>📁 \\\${val.filename}</td>\\\`;
+                        } else if (val) {
+                          return \\\`<td>📁 첨부파일</td>\\\`;
+                        }
+                        return \\\`<td>-</td>\\\`;
+                      }
+
+                      return \\\`<td>\\\${val === undefined || val === null ? '' : (Array.isArray(val) ? val.join(', ') : String(val))}</td>\\\`;
+                    }).join('')}
+                  </tr>
+                \\\`;
+              }).join('')}
+            </tbody>
+          </table>
+          <div class="footer-info">모두의 연수등록부 © \${new Date().getFullYear()}</div>
+        </div>
+        \`;
+      });
+
+      html += `
+        <script>
+          window.onload = function() {
+            window.print();
+          }
+        </script>
+        </body>
+        </html>
+      `;
+
+      printWin.document.open();
+      printWin.document.write(html);
+      printWin.document.close();
+    }
+
     // -------------------------------------------------------------
     // [5] 자필서명 클래스 (Signature Module)
     // -------------------------------------------------------------
@@ -1557,11 +1790,23 @@
         this.canvas.addEventListener('pointermove', (e) => this.draw(e));
         this.canvas.addEventListener('pointerup', () => this.endDraw());
         this.canvas.addEventListener('pointercancel', () => this.endDraw());
+        
+        // 터치 기기 드래그 및 화면 스크롤 방지 강제화
+        this.canvas.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }, { passive: false });
+        this.canvas.addEventListener('touchmove', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }, { passive: false });
+
         this.clearBtn.addEventListener('click', () => this.clear());
         this.fileInput.addEventListener('change', (e) => this.handleUpload(e));
       }
       startDraw(e) {
         e.preventDefault();
+        e.stopPropagation();
         this.isDrawing = true;
         this.hasDrawn = true;
         this.placeholder.style.display = 'none';
@@ -1576,6 +1821,7 @@
       draw(e) {
         if (!this.isDrawing) return;
         e.preventDefault();
+        e.stopPropagation();
         const pos = this.getPos(e);
         const now = Date.now();
         const curr = { x: pos.x, y: pos.y, time: now };
@@ -1933,17 +2179,36 @@
         }
       }
       render() {
+        const orgMap = new Map();
+        const orgs = [];
+        this.trainings.forEach(t => {
+          const orgId = t.orgId || 'admin';
+          const orgName = t.orgName || '시스템 관리자';
+          if (!orgMap.has(orgId)) {
+            orgMap.set(orgId, orgName);
+            orgs.push({ orgId, orgName });
+          }
+        });
+
         this.container.innerHTML = `
           <div class="card" style="max-width: 600px; margin: 0 auto;">
             <h2 class="card-title">연수·회의 출석 등록</h2>
             <p class="card-subtitle">참석 정보를 입력해 주시기 바랍니다.</p>
             <form id="register-form">
-              <div class="form-group" id="tr-select-group">
-                <label class="form-label">연수·회의 선택 <span class="required">*</span></label>
-                <select class="form-select" id="tr-select" required>
-                  <option value="">-- 참석할 연수를 선택하세요 --</option>
-                  ${this.trainings.map(t => `<option value="${t.id}">${t.title} (${t.date})</option>`).join('')}
-                </select>
+              <div id="filter-wrapper">
+                <div class="form-group" id="org-select-group">
+                  <label class="form-label">기관 선택 <span class="required">*</span></label>
+                  <select class="form-select" id="org-select" required>
+                    <option value="">-- 소속 기관을 선택하세요 --</option>
+                    ${orgs.map(o => `<option value="${o.orgId}">${o.orgName}</option>`).join('')}
+                  </select>
+                </div>
+                <div class="form-group" id="tr-select-group">
+                  <label class="form-label">연수·회의 선택 <span class="required">*</span></label>
+                  <select class="form-select" id="tr-select" required disabled>
+                    <option value="">-- 먼저 기관을 선택하세요 --</option>
+                  </select>
+                </div>
               </div>
               <div id="dynamic-form-area" style="display: none;">
                 <div class="form-group">
@@ -1957,19 +2222,40 @@
           </div>
         `;
         this.form = this.container.querySelector('#register-form');
+        this.filterWrapper = this.container.querySelector('#filter-wrapper');
+        this.orgSelect = this.container.querySelector('#org-select');
         this.selectGroup = this.container.querySelector('#tr-select-group');
         this.selectEl = this.container.querySelector('#tr-select');
         this.formArea = this.container.querySelector('#dynamic-form-area');
         this.nameInput = this.container.querySelector('#user-name');
         this.modulesContainer = this.container.querySelector('#modules-container');
 
+        this.orgSelect.addEventListener('change', () => {
+          const selectedOrgId = this.orgSelect.value;
+          if (!selectedOrgId) {
+            this.selectEl.innerHTML = '<option value="">-- 먼저 기관을 선택하세요 --</option>';
+            this.selectEl.disabled = true;
+            this.formArea.style.display = 'none';
+            return;
+          }
+          const filtered = this.trainings.filter(t => (t.orgId || 'admin') === selectedOrgId);
+          this.selectEl.innerHTML = `
+            <option value="">-- 참석할 연수를 선택하세요 --</option>
+            ${filtered.map(t => `<option value="${t.id}">${t.title} (${t.date})</option>`).join('')}
+          `;
+          this.selectEl.disabled = false;
+          this.formArea.style.display = 'none';
+        });
+
         this.selectEl.addEventListener('change', () => this.handleTrainingChange());
         this.form.addEventListener('submit', (e) => this.handleSubmit(e));
 
         if (this.trainingId) {
-          if (this.trainings.some(t => t.id === this.trainingId)) {
-            this.selectEl.value = this.trainingId;
-            this.selectGroup.style.display = 'none';
+          const tr = this.trainings.find(t => t.id === this.trainingId);
+          if (tr) {
+            this.filterWrapper.style.display = 'none';
+            this.selectEl.innerHTML = `<option value="${tr.id}" selected>${tr.title}</option>`;
+            this.selectEl.value = tr.id;
             this.handleTrainingChange();
           } else showToast('연수가 존재하지 않습니다.', 'danger');
         }
@@ -2050,37 +2336,170 @@
         this.checkSession();
       }
       checkSession() {
-        const sess = localStorage.getItem('everyone_register_session');
-        if (sess && sess.startsWith('mock_token_')) {
-          this.isAuthenticated = true;
-          this.init();
-        } else this.renderLogin();
+        const sessStr = localStorage.getItem('everyone_register_session');
+        if (sessStr) {
+          try {
+            if (sessStr.startsWith('{')) {
+              const sess = JSON.parse(sessStr);
+              if (sess && sess.token) {
+                this.isAuthenticated = true;
+                this.orgId = sess.orgId;
+                this.orgName = sess.orgName;
+                this.init();
+                return;
+              }
+            } else if (sessStr.startsWith('mock_token_')) {
+              this.isAuthenticated = true;
+              this.orgId = 'admin';
+              this.orgName = '시스템 관리자';
+              this.init();
+              return;
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        this.renderLogin();
       }
       renderLogin() {
         this.container.innerHTML = `
-          <div class="card" style="max-width: 400px; margin: 4rem auto;">
-            <h2 class="card-title" style="text-align:center;">관리자 로그인</h2>
-            <form id="login-form" style="margin-top:1.5rem;">
-              <div class="form-group">
-                <label class="form-label">비밀번호</label>
-                <input type="password" class="form-control" id="pw" required placeholder="기본 비밀번호: 1234">
+          <div class="card" id="admin-login-card" style="max-width: 400px; margin: 4rem auto; transition: all 0.3s ease;">
+            <div id="login-section">
+              <h2 class="card-title" style="text-align:center;">관리자 로그인</h2>
+              <form id="login-form" style="margin-top:1.5rem;">
+                <div class="form-group">
+                  <label class="form-label">기관 아이디 (관리자 ID)</label>
+                  <input type="text" class="form-control" id="login-id" required placeholder="예: busan_m 또는 admin" value="admin">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">비밀번호</label>
+                  <input type="password" class="form-control" id="login-pw" required placeholder="기본 비밀번호: 1234">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1.5rem;">로그인</button>
+              </form>
+              <div style="margin-top:1.5rem; text-align:center; font-size:0.875rem;">
+                <span style="color:var(--text-secondary);">새로운 기관이신가요?</span>
+                <a href="#" id="go-register" style="color:var(--color-primary); font-weight:600; text-decoration:none; margin-left:0.5rem;">기관 회원가입</a>
               </div>
-              <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;">확인</button>
-            </form>
+            </div>
+            
+            <div id="register-section" style="display:none;">
+              <h2 class="card-title" style="text-align:center;">기관 회원가입</h2>
+              <form id="register-form" style="margin-top:1.5rem;">
+                <div class="form-group">
+                  <label class="form-label">기관 아이디 (관리자 ID)</label>
+                  <input type="text" class="form-control" id="reg-id" required placeholder="영문, 숫자 조합 (예: busan_m)">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">기관명 (학교/기관 정식명칭)</label>
+                  <input type="text" class="form-control" id="reg-name" required placeholder="예: 부산중학교">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">비밀번호</label>
+                  <input type="password" class="form-control" id="reg-pw" required placeholder="비밀번호 입력">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">비밀번호 확인</label>
+                  <input type="password" class="form-control" id="reg-pw-confirm" required placeholder="비밀번호 다시 입력">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1.5rem;">가입하기</button>
+              </form>
+              <div style="margin-top:1.5rem; text-align:center; font-size:0.875rem;">
+                <span style="color:var(--text-secondary);">이미 가입하셨나요?</span>
+                <a href="#" id="go-login" style="color:var(--color-primary); font-weight:600; text-decoration:none; margin-left:0.5rem;">로그인으로 이동</a>
+              </div>
+            </div>
           </div>
         `;
+
+        const loginSec = this.container.querySelector('#login-section');
+        const regSec = this.container.querySelector('#register-section');
+
+        this.container.querySelector('#go-register').addEventListener('click', (e) => {
+          e.preventDefault();
+          loginSec.style.display = 'none';
+          regSec.style.display = 'block';
+        });
+
+        this.container.querySelector('#go-login').addEventListener('click', (e) => {
+          e.preventDefault();
+          regSec.style.display = 'none';
+          loginSec.style.display = 'block';
+        });
+
+        // Login Handler
         this.container.querySelector('#login-form').addEventListener('submit', async (e) => {
           e.preventDefault();
+          const id = this.container.querySelector('#login-id').value.trim();
+          const pw = this.container.querySelector('#login-pw').value;
+          const btn = e.target.querySelector('button[type="submit"]');
+          btn.disabled = true; btn.textContent = '로그인 중...';
           try {
-            const res = await api.login(this.container.querySelector('#pw').value);
-            if (res.success) { this.isAuthenticated = true; this.init(); }
-          } catch (err) { showToast(err.message, 'danger'); }
+            const res = await api.login(id, pw);
+            if (res.success) {
+              this.isAuthenticated = true;
+              this.orgId = res.orgId;
+              this.orgName = res.orgName;
+              
+              const token = 'mock_token_' + Math.random().toString(36).substring(2);
+              localStorage.setItem('everyone_register_session', JSON.stringify({
+                token, orgId: res.orgId, orgName: res.orgName
+              }));
+              
+              this.init();
+            }
+          } catch (err) {
+            showToast(err.message, 'danger');
+            btn.disabled = false; btn.textContent = '로그인';
+          }
+        });
+
+        // Register Handler
+        this.container.querySelector('#register-form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const id = this.container.querySelector('#reg-id').value.trim();
+          const name = this.container.querySelector('#reg-name').value.trim();
+          const pw = this.container.querySelector('#reg-pw').value;
+          const pwConfirm = this.container.querySelector('#reg-pw-confirm').value;
+
+          if (pw !== pwConfirm) {
+            showToast('비밀번호가 일치하지 않습니다.', 'danger');
+            return;
+          }
+          if (id === 'admin') {
+            showToast('admin 아이디는 사용할 수 없습니다.', 'danger');
+            return;
+          }
+
+          const btn = e.target.querySelector('button[type="submit"]');
+          btn.disabled = true; btn.textContent = '가입 중...';
+
+          try {
+            const res = await api.register(id, pw, name);
+            if (res.success) {
+              showToast('기관 가입이 성공적으로 완료되었습니다.', 'success');
+              regSec.style.display = 'none';
+              loginSec.style.display = 'block';
+              this.container.querySelector('#login-id').value = id;
+              this.container.querySelector('#login-pw').value = '';
+              this.container.querySelector('#login-pw').focus();
+            }
+          } catch (err) {
+            showToast(err.message, 'danger');
+          } finally {
+            btn.disabled = false; btn.textContent = '가입하기';
+          }
         });
       }
       async init() {
         this.container.innerHTML = '대시보드 동기화 중...';
         try {
-          this.trainings = await api.getTrainings();
+          const allTrainings = await api.getTrainings();
+          if (this.orgId === 'admin') {
+            this.trainings = allTrainings;
+          } else {
+            this.trainings = allTrainings.filter(t => (t.orgId || 'admin') === this.orgId);
+          }
           this.render();
         } catch (e) { showToast(e.message, 'danger'); }
       }
@@ -2098,6 +2517,10 @@
         const gasUrl = config.getGasUrl();
 
         this.container.innerHTML = `
+          <div style="margin-bottom: 1.5rem; padding: 0.75rem 1rem; background-color: var(--bg-tertiary); border-radius: var(--radius-md); font-size: 0.875rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center;">
+            <span>🏢 기관 로그인: <strong>${this.orgName} (${this.orgId})</strong></span>
+          </div>
+
           <div class="dashboard-stats">
             <div class="stat-card"><span class="stat-value">${this.trainings.length}</span><span class="stat-label">생성된 서명부</span></div>
             <div class="stat-card"><span class="stat-value">${total}</span><span class="stat-label">수집된 서명 건수</span></div>
@@ -2148,7 +2571,8 @@
             </div>
           `}
 
-          <!-- 시스템 환경설정 -->
+          ${this.orgId === 'admin' ? `
+          <!-- 시스템 환경설정 (수퍼관리자 전용) -->
           <div class="card" style="margin-top:3rem; border-top:4px solid var(--color-primary);">
             <h3>⚙️ 데이터 연동 옵션</h3>
             <p style="font-size:0.875rem; color:var(--text-secondary); margin-bottom:1rem;">
@@ -2165,6 +2589,7 @@
               <button class="btn btn-outline btn-sm" id="btn-reset-seed">Mock 데이터 강제 리셋</button>
             </div>
           </div>
+          ` : ''}
 
           <!-- 새 연수 팝업 모달 -->
           <div class="modal-overlay" id="add-modal" style="display:none;">
@@ -2181,6 +2606,11 @@
                       한 줄에 한 명씩 '이름,부서명' 형식으로 입력하세요.<br>
                       (예: 홍길동,교무부 또는 김영희)
                     </p>
+                    <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+                      <button type="button" class="btn btn-outline btn-sm btn-csv-template" style="padding: 2px 8px; font-size: 0.75rem; line-height: 1.5;">CSV 템플릿 다운로드</button>
+                      <button type="button" class="btn btn-outline btn-sm btn-csv-upload-trigger" style="padding: 2px 8px; font-size: 0.75rem; line-height: 1.5;">CSV 파일 가져오기</button>
+                      <input type="file" class="csv-file-input" accept=".csv" style="display:none;">
+                    </div>
                     <textarea class="form-control" id="add-participants" style="min-height:120px; font-family:monospace;" placeholder="홍길동,교무부&#10;김철수,행정실&#10;이영희"></textarea>
                   </div>
                 </div>
@@ -2209,6 +2639,11 @@
                       부서명이 모두 동일하거나 기입하지 않으면 등수만 노출됩니다.<br>
                       (예: 홍길동,교무부 또는 김영희)
                     </p>
+                    <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+                      <button type="button" class="btn btn-outline btn-sm btn-csv-template" style="padding: 2px 8px; font-size: 0.75rem; line-height: 1.5;">CSV 템플릿 다운로드</button>
+                      <button type="button" class="btn btn-outline btn-sm btn-csv-upload-trigger" style="padding: 2px 8px; font-size: 0.75rem; line-height: 1.5;">CSV 파일 가져오기</button>
+                      <input type="file" class="csv-file-input" accept=".csv" style="display:none;">
+                    </div>
                     <textarea class="form-control" id="edit-participants" style="min-height:150px; font-family:monospace;" placeholder="홍길동,교무부&#10;김철수,행정실&#10;이영희"></textarea>
                   </div>
                 </div>
@@ -2239,6 +2674,103 @@
         this.container.querySelector('#btn-modal-close').addEventListener('click', close);
         this.container.querySelector('#btn-modal-cancel').addEventListener('click', close);
 
+        // Helper for CSV downloading & uploading
+        const downloadRosterCSVTemplate = () => {
+          const csvContent = "\uFEFF성명,부서명\r\n홍길동,교무부\r\n김철수,행정실\r\n이영희,과학부";
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.setAttribute("href", url);
+          link.setAttribute("download", "사전참가자명단_양식.csv");
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        };
+
+        const handleRosterCSVUpload = (e, textarea) => {
+          const file = e.target.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            const arrayBuffer = evt.target.result;
+            const uint8Array = new Uint8Array(arrayBuffer);
+            
+            let encoding = 'utf-8';
+            if (uint8Array[0] === 0xEF && uint8Array[1] === 0xBB && uint8Array[2] === 0xBF) {
+              encoding = 'utf-8';
+            } else {
+              try {
+                const decoder = new TextDecoder('utf-8', { fatal: true });
+                decoder.decode(uint8Array);
+                encoding = 'utf-8';
+              } catch (err) {
+                encoding = 'euc-kr';
+              }
+            }
+
+            const decoder = new TextDecoder(encoding);
+            const text = decoder.decode(uint8Array);
+            const lines = text.split(/\r?\n/);
+            const parsed = [];
+
+            let startIdx = 0;
+            if (lines.length > 0) {
+              const firstLine = lines[0].trim();
+              if (firstLine.includes('성명') || firstLine.includes('부서') || firstLine.includes('이름') || firstLine.includes('name') || firstLine.includes('dept')) {
+                startIdx = 1;
+              }
+            }
+
+            for (let i = startIdx; i < lines.length; i++) {
+              const line = lines[i].trim();
+              if (!line) continue;
+              const parts = line.split(',').map(p => p.replace(/^["']|["']$/g, '').trim());
+              if (parts[0]) {
+                if (parts[1]) {
+                  parsed.push(`${parts[0]},${parts[1]}`);
+                } else {
+                  parsed.push(parts[0]);
+                }
+              }
+            }
+
+            textarea.value = parsed.join('\n');
+            e.target.value = ''; // Reset file input
+            showToast(`CSV로부터 ${parsed.length}명의 명단을 가져왔습니다.`, 'success');
+          };
+          reader.readAsArrayBuffer(file);
+        };
+
+        // Bind CSV events for add modal
+        const addCsvTmplBtn = this.container.querySelector('#add-modal .btn-csv-template');
+        const addCsvUploadTrigger = this.container.querySelector('#add-modal .btn-csv-upload-trigger');
+        const addCsvInput = this.container.querySelector('#add-modal .csv-file-input');
+        const addParticipantsTextarea = this.container.querySelector('#add-participants');
+
+        if (addCsvTmplBtn) {
+          addCsvTmplBtn.addEventListener('click', () => downloadRosterCSVTemplate());
+        }
+        if (addCsvUploadTrigger && addCsvInput) {
+          addCsvUploadTrigger.addEventListener('click', () => addCsvInput.click());
+          addCsvInput.addEventListener('change', (e) => handleRosterCSVUpload(e, addParticipantsTextarea));
+        }
+
+        // Bind CSV events for edit modal
+        const editCsvTmplBtn = this.container.querySelector('#edit-modal .btn-csv-template');
+        const editCsvUploadTrigger = this.container.querySelector('#edit-modal .btn-csv-upload-trigger');
+        const editCsvInput = this.container.querySelector('#edit-modal .csv-file-input');
+        const editParticipantsTextarea = this.container.querySelector('#edit-participants');
+
+        if (editCsvTmplBtn) {
+          editCsvTmplBtn.addEventListener('click', () => downloadRosterCSVTemplate());
+        }
+        if (editCsvUploadTrigger && editCsvInput) {
+          editCsvUploadTrigger.addEventListener('click', () => editCsvInput.click());
+          editCsvInput.addEventListener('change', (e) => handleRosterCSVUpload(e, editParticipantsTextarea));
+        }
+
         this.container.querySelector('#add-form').addEventListener('submit', async (e) => {
           e.preventDefault();
           const title = this.container.querySelector('#add-title').value;
@@ -2263,7 +2795,7 @@
           const defaultMods = [{ id: 'mod_sig_default', type: 'signature', label: '자필 서명', required: true }];
           
           try {
-            const tr = await api.createTraining(title, date, location, defaultMods, participants);
+            const tr = await api.createTraining(title, date, location, defaultMods, participants, this.orgId, this.orgName);
             showToast('연수가 추가되었습니다.', 'success');
             close();
             window.location.hash = `#/builder?id=${tr.id}`;
@@ -2318,7 +2850,10 @@
             });
             
           try {
-            await api.updateTraining(id, title, date, location, participants);
+            const existingTr = this.trainings.find(tr => tr.id === id);
+            const trOrgId = existingTr ? existingTr.orgId : this.orgId;
+            const trOrgName = existingTr ? existingTr.orgName : this.orgName;
+            await api.updateTraining(id, title, date, location, participants, trOrgId, trOrgName);
             showToast('연수 정보가 수정되었습니다.', 'success');
             closeEdit();
             this.init();
@@ -2338,20 +2873,26 @@
           });
         });
 
-        this.container.querySelector('#btn-save-gas').addEventListener('click', () => {
-          const url = this.container.querySelector('#gas-url').value.trim();
-          config.setGasUrl(url);
-          showToast(url ? 'Google Apps Script 연결 완료' : '로컬 모드로 전환', 'success');
-          this.init();
-        });
-
-        this.container.querySelector('#btn-reset-seed').addEventListener('click', () => {
-          if (confirm('로컬 메모리를 날리고 초기 설정으로 복원하시겠습니까?')) {
-            api.resetMockData();
-            showToast('복원되었습니다.', 'success');
+        const btnSaveGas = this.container.querySelector('#btn-save-gas');
+        if (btnSaveGas) {
+          btnSaveGas.addEventListener('click', () => {
+            const url = this.container.querySelector('#gas-url').value.trim();
+            config.setGasUrl(url);
+            showToast(url ? 'Google Apps Script 연결 완료' : '로컬 모드로 전환', 'success');
             this.init();
-          }
-        });
+          });
+        }
+
+        const btnResetSeed = this.container.querySelector('#btn-reset-seed');
+        if (btnResetSeed) {
+          btnResetSeed.addEventListener('click', () => {
+            if (confirm('로컬 메모리를 날리고 초기 설정으로 복원하시겠습니까?')) {
+              api.resetMockData();
+              showToast('복원되었습니다.', 'success');
+              this.init();
+            }
+          });
+        }
       }
     }
 
@@ -2867,9 +3408,12 @@
                   </select>
                 </div>
               </div>
-              <div class="modal-footer">
+              <div class="modal-footer" style="display:flex; justify-content:space-between; width:100%;">
                 <button type="button" class="btn btn-secondary" id="btn-pdf-modal-cancel">취소</button>
-                <button type="button" class="btn btn-primary" id="btn-pdf-modal-start">출력 시작</button>
+                <div style="display:flex; gap:0.5rem;">
+                  <button type="button" class="btn btn-outline" id="btn-pdf-modal-print-html" style="border-color:var(--color-primary); color:var(--color-primary);">웹 브라우저 인쇄</button>
+                  <button type="button" class="btn btn-primary" id="btn-pdf-modal-start">PDF 다운로드</button>
+                </div>
               </div>
             </div>
           </div>
@@ -3053,6 +3597,22 @@
                 showToast('삭제 실패: ' + err.message, 'danger');
               }
             }
+          });
+        }
+
+        const pdfModalPrintHtml = this.container.querySelector('#btn-pdf-modal-print-html');
+        if (pdfModalPrintHtml) {
+          pdfModalPrintHtml.addEventListener('click', () => {
+            closePdfModal();
+            const checks = this.container.querySelectorAll('#pdf-cols-checks input[type="checkbox"]:checked');
+            const selectedColumns = Array.from(checks).map(cb => cb.value);
+            const rowsPerPage = Number(this.container.querySelector('#pdf-rows-per-page').value);
+            
+            printHTML(this.training, this.responses, {
+              selectedColumns,
+              rowsPerPage
+            });
+            showToast('인쇄 미리보기가 실행되었습니다.', 'success');
           });
         }
 

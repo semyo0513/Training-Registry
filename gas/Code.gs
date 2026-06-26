@@ -66,16 +66,19 @@ function doPost(e) {
         break;
       // 기존 POST 액션
       case 'adminLogin':
-        result = adminLogin(payload.password);
+        result = adminLogin(payload.id || 'admin', payload.password);
+        break;
+      case 'adminRegister':
+        result = adminRegister(payload.id, payload.password, payload.orgName);
         break;
       case 'createTraining':
-        result = createTraining(payload.title, payload.date, payload.location, payload.modules, payload.participants);
+        result = createTraining(payload.title, payload.date, payload.location, payload.modules, payload.participants, payload.orgId, payload.orgName);
         break;
       case 'updateForm':
         result = updateForm(payload.id, payload.modules);
         break;
       case 'updateTraining':
-        result = updateTraining(payload.id, payload.title, payload.date, payload.location, payload.participants);
+        result = updateTraining(payload.id, payload.title, payload.date, payload.location, payload.participants, payload.orgId, payload.orgName);
         break;
       case 'deleteTraining':
         result = deleteTraining(payload.id);
@@ -111,17 +114,27 @@ function errorResponse(msg) {
 function initSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
-  // 5-1. trainings 시트가 없을 경우 자동 생성 (ID, 연수명, 날짜, 장소, 모듈 스키마 JSON, 생성일, 사전참석자명단)
+  // 5-1. trainings 시트가 없을 경우 자동 생성 (ID, 연수명, 날짜, 장소, 모듈 스키마 JSON, 생성일, 사전참석자명단, 기관정보)
   let trSheet = ss.getSheetByName(SHEET_TRAININGS);
   if (!trSheet) {
     trSheet = ss.insertSheet(SHEET_TRAININGS);
-    trSheet.appendRow(['id', 'title', 'date', 'location', 'modules', 'createdAt', 'participants']);
-    trSheet.getRange('A1:G1').setFontWeight('bold').setBackground('#eaeaea');
+    trSheet.appendRow(['id', 'title', 'date', 'location', 'modules', 'createdAt', 'participants', 'orgId', 'orgName']);
+    trSheet.getRange('A1:I1').setFontWeight('bold').setBackground('#eaeaea');
   } else {
-    // 기존 시트에 participants 컬럼이 없으면 헤더에 추가
-    const headers = trSheet.getRange(1, 1, 1, trSheet.getLastColumn()).getValues()[0];
+    // 기존 시트에 participants, orgId, orgName 컬럼이 없으면 헤더에 추가
+    let headers = trSheet.getRange(1, 1, 1, trSheet.getLastColumn()).getValues()[0];
     if (headers.indexOf('participants') === -1) {
       trSheet.getRange(1, trSheet.getLastColumn() + 1).setValue('participants');
+      trSheet.getRange(1, trSheet.getLastColumn()).setFontWeight('bold').setBackground('#eaeaea');
+      headers = trSheet.getRange(1, 1, 1, trSheet.getLastColumn()).getValues()[0];
+    }
+    if (headers.indexOf('orgId') === -1) {
+      trSheet.getRange(1, trSheet.getLastColumn() + 1).setValue('orgId');
+      trSheet.getRange(1, trSheet.getLastColumn()).setFontWeight('bold').setBackground('#eaeaea');
+      headers = trSheet.getRange(1, 1, 1, trSheet.getLastColumn()).getValues()[0];
+    }
+    if (headers.indexOf('orgName') === -1) {
+      trSheet.getRange(1, trSheet.getLastColumn() + 1).setValue('orgName');
       trSheet.getRange(1, trSheet.getLastColumn()).setFontWeight('bold').setBackground('#eaeaea');
     }
   }
@@ -130,9 +143,22 @@ function initSheets() {
   let adminSheet = ss.getSheetByName(SHEET_ADMINS);
   if (!adminSheet) {
     adminSheet = ss.insertSheet(SHEET_ADMINS);
-    adminSheet.appendRow(['id', 'password']);
-    adminSheet.getRange('A1:B1').setFontWeight('bold').setBackground('#eaeaea');
-    adminSheet.appendRow(['admin', '1234']); // 기본 관리자 계정
+    adminSheet.appendRow(['id', 'password', 'orgName']);
+    adminSheet.getRange('A1:C1').setFontWeight('bold').setBackground('#eaeaea');
+    adminSheet.appendRow(['admin', '1234', '시스템 관리자']); // 기본 관리자 계정
+  } else {
+    const headers = adminSheet.getRange(1, 1, 1, adminSheet.getLastColumn()).getValues()[0];
+    if (headers.indexOf('orgName') === -1) {
+      adminSheet.getRange(1, adminSheet.getLastColumn() + 1).setValue('orgName');
+      adminSheet.getRange(1, adminSheet.getLastColumn()).setFontWeight('bold').setBackground('#eaeaea');
+      // 기존 admin 계정에 시스템 관리자 이름 부여
+      const rows = adminSheet.getDataRange().getValues();
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i][0] === 'admin') {
+          adminSheet.getRange(i + 1, adminSheet.getLastColumn()).setValue('시스템 관리자');
+        }
+      }
+    }
   }
 }
 
@@ -181,22 +207,57 @@ function getForm(id) {
 }
 
 // 6-3. 관리자 로그인 확인
-function adminLogin(password) {
+// 6-3. 관리자 로그인 확인
+function adminLogin(id, password) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_ADMINS);
   const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+
+  const idCol = headers.indexOf('id');
+  const pwCol = headers.indexOf('password');
+  const nameCol = headers.indexOf('orgName');
 
   for (let i = 1; i < rows.length; i++) {
-    // 문자열 비교 (간단비교)
-    if (String(rows[i][1]) === String(password)) {
-      return { success: true };
+    const row = rows[i];
+    if (String(row[idCol]).trim() === String(id).trim() && String(row[pwCol]).trim() === String(password).trim()) {
+      return {
+        success: true,
+        orgId: String(row[idCol]).trim(),
+        orgName: nameCol !== -1 ? String(row[nameCol]).trim() : '기본 기관'
+      };
     }
   }
-  throw new Error('비밀번호가 일치하지 않습니다.');
+  throw new Error('아이디 또는 비밀번호가 일치하지 않습니다.');
+}
+
+// 6-3-2. 기관 회원가입 등록
+function adminRegister(id, password, orgName) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_ADMINS);
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+
+  const idCol = headers.indexOf('id');
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][idCol]).trim() === String(id).trim()) {
+      throw new Error('이미 존재하는 기관 아이디입니다.');
+    }
+  }
+
+  const rowData = [];
+  headers.forEach(h => {
+    if (h === 'id') rowData.push(id.trim());
+    else if (h === 'password') rowData.push(password.trim());
+    else if (h === 'orgName') rowData.push(orgName.trim());
+    else rowData.push('');
+  });
+  sheet.appendRow(rowData);
+  return { success: true, orgId: id, orgName: orgName };
 }
 
 // 6-4. 새 연수 생성
-function createTraining(title, date, location, modules, participants) {
+function createTraining(title, date, location, modules, participants, orgId, orgName) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_TRAININGS);
   
@@ -216,6 +277,8 @@ function createTraining(title, date, location, modules, participants) {
     else if (h === 'modules') rowData.push(modulesJson);
     else if (h === 'createdAt') rowData.push(createdAt);
     else if (h === 'participants') rowData.push(participantsJson);
+    else if (h === 'orgId') rowData.push(orgId || 'admin');
+    else if (h === 'orgName') rowData.push(orgName || '시스템 관리자');
     else rowData.push('');
   });
   sheet.appendRow(rowData);
@@ -230,7 +293,7 @@ function createTraining(title, date, location, modules, participants) {
     respSheet.getRange('A1:C1').setFontWeight('bold').setBackground('#d1fae5');
   }
 
-  return { id: newId, title, date, location, modules, createdAt, participants };
+  return { id: newId, title, date, location, modules, createdAt, participants, orgId, orgName };
 }
 
 // 6-5. 연수 폼 스키마 수정
@@ -262,7 +325,7 @@ function updateForm(id, modules) {
 }
 
 // 6-5-2. 연수 정보 및 사전참가자 명단 수정
-function updateTraining(id, title, date, location, participants) {
+function updateTraining(id, title, date, location, participants, orgId, orgName) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_TRAININGS);
   const rows = sheet.getDataRange().getValues();
@@ -286,6 +349,8 @@ function updateTraining(id, title, date, location, participants) {
     else if (h === 'date') sheet.getRange(foundRowIdx, colIdx).setValue(date);
     else if (h === 'location') sheet.getRange(foundRowIdx, colIdx).setValue(location);
     else if (h === 'participants') sheet.getRange(foundRowIdx, colIdx).setValue(participantsJson);
+    else if (h === 'orgId') sheet.getRange(foundRowIdx, colIdx).setValue(orgId || 'admin');
+    else if (h === 'orgName') sheet.getRange(foundRowIdx, colIdx).setValue(orgName || '시스템 관리자');
   });
 
   return { success: true };
