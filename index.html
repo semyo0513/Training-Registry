@@ -8,9 +8,2397 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- 외부 라이브러리 CDN 로드 (웹 서버 없이 작동하도록 글로벌 객체 바인딩 형식으로 사용) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- 프리미엄 디자인 시스템 스타일시트 -->
+  <style>
+    /* 1. 디자인 토큰 및 CSS 변수 */
+    :root {
+      --font-sans: 'Outfit', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      
+      --bg-primary: #f8fafc;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #f1f5f9;
+      
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      
+      --color-primary: #4f46e5;       /* Deep Indigo */
+      --color-primary-hover: #4338ca;
+      --color-primary-light: #e0e7ff;
+      
+      --color-success: #10b981;       /* Emerald Green */
+      --color-success-hover: #059669;
+      --color-success-light: #d1fae5;
+      
+      --color-danger: #ef4444;        /* Rose Red */
+      --color-danger-hover: #dc2626;
+      --color-danger-light: #fee2e2;
+      
+      --color-warning: #f59e0b;       /* Amber Gold */
+      --color-warning-hover: #d97706;
+      --color-warning-light: #fef3c7;
+      
+      --border-color: #e2e8f0;
+      --border-focus: #a5b4fc;
+      
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+      --shadow-premium: 0 20px 25px -5px rgba(79, 70, 229, 0.08), 0 8px 10px -6px rgba(79, 70, 229, 0.08);
+      
+      --radius-sm: 0.375rem;
+      --radius-md: 0.75rem;
+      --radius-lg: 1.25rem;
+      --radius-full: 9999px;
+      
+      --transition-fast: 0.15s ease;
+      --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      
+      --glass-bg: rgba(255, 255, 255, 0.75);
+      --glass-border: rgba(255, 255, 255, 0.5);
+      --glass-blur: 12px;
+    }
+
+    /* 다크 테마 대응 */
+    [data-theme="dark"] {
+      --bg-primary: #0b0f19;
+      --bg-secondary: #161e2e;
+      --bg-tertiary: #1f293d;
+      
+      --text-primary: #f9fafb;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      
+      --color-primary: #6366f1;
+      --color-primary-hover: #4f46e5;
+      --color-primary-light: #2d2f5c;
+      
+      --border-color: #2a3447;
+      --border-focus: #6366f1;
+      
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+      --shadow-premium: 0 20px 25px -5px rgba(99, 102, 241, 0.15), 0 8px 10px -6px rgba(99, 102, 241, 0.15);
+      
+      --glass-bg: rgba(22, 30, 46, 0.85);
+      --glass-border: rgba(255, 255, 255, 0.05);
+    }
+
+    /* 2. 전역 스타일 초기화 */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color var(--transition-normal), color var(--transition-normal);
+      overflow-x: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border-bottom: 1px solid var(--border-color);
+      transition: background-color var(--transition-normal), border-color var(--transition-normal);
+    }
+
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem 1.5rem;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--color-primary);
+      text-decoration: none;
+      letter-spacing: -0.025em;
+    }
+
+    .logo-icon {
+      background: linear-gradient(135deg, var(--color-primary), #8b5cf6);
+      color: white;
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.125rem;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .nav-link {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.95rem;
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-md);
+      transition: all var(--transition-fast);
+    }
+
+    .nav-link:hover {
+      color: var(--color-primary);
+      background-color: var(--bg-tertiary);
+    }
+
+    .nav-link.active {
+      color: var(--color-primary);
+      background-color: var(--color-primary-light);
+      font-weight: 600;
+    }
+
+    .theme-toggle {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color var(--transition-fast);
+    }
+
+    .theme-toggle:hover {
+      background-color: var(--bg-tertiary);
+      color: var(--color-primary);
+    }
+
+    .main-content {
+      flex: 1;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      animation: fadeIn var(--transition-normal);
+    }
+
+    /* 3. 애니메이션 */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* 4. 공통 UI */
+    .card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      box-shadow: var(--shadow-md);
+      transition: all var(--transition-normal);
+    }
+
+    .card:hover {
+      box-shadow: var(--shadow-premium);
+      border-color: var(--border-focus);
+    }
+
+    .card-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+    }
+
+    .card-subtitle {
+      font-size: 0.925rem;
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+    }
+
+    /* 5. 폼 스타일 */
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+    }
+
+    .form-label .required {
+      color: var(--color-danger);
+      margin-left: 0.25rem;
+    }
+
+    .form-control, .form-select {
+      width: 100%;
+      font-family: inherit;
+      font-size: 0.95rem;
+      padding: 0.75rem 1rem;
+      color: var(--text-primary);
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      outline: none;
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+
+    .form-control::placeholder {
+      color: var(--text-muted);
+    }
+
+    textarea.form-control {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .checkbox-group, .radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.625rem;
+      margin-top: 0.5rem;
+    }
+
+    .option-control {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.95rem;
+      cursor: pointer;
+      user-select: none;
+      color: var(--text-secondary);
+    }
+
+    .option-control input[type="checkbox"],
+    .option-control input[type="radio"] {
+      appearance: none;
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: var(--radius-sm);
+      display: grid;
+      place-content: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .option-control input[type="radio"] {
+      border-radius: var(--radius-full);
+    }
+
+    .option-control input[type="checkbox"]::before,
+    .option-control input[type="radio"]::before {
+      content: "";
+      width: 0.625rem;
+      height: 0.625rem;
+      transform: scale(0);
+      transition: transform var(--transition-fast);
+      box-shadow: inset 1em 1em var(--color-primary);
+    }
+
+    .option-control input[type="checkbox"]::before {
+      clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+    }
+
+    .option-control input[type="radio"]::before {
+      border-radius: var(--radius-full);
+    }
+
+    .option-control input:checked {
+      border-color: var(--color-primary);
+      background-color: var(--color-primary-light);
+    }
+
+    .option-control input:checked::before {
+      transform: scale(1);
+    }
+
+    /* 6. 버튼 */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 0.65rem 1.25rem;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      cursor: pointer;
+      user-select: none;
+      transition: all var(--transition-fast);
+      text-decoration: none;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      background-color: var(--color-primary);
+      color: white;
+      box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);
+    }
+
+    .btn-primary:hover {
+      background-color: var(--color-primary-hover);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+    }
+
+    .btn-secondary {
+      background-color: var(--bg-tertiary);
+      color: var(--text-primary);
+      border-color: var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--border-color);
+    }
+
+    .btn-danger {
+      background-color: var(--color-danger);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background-color: var(--color-danger-hover);
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      border-color: var(--border-color);
+      color: var(--text-secondary);
+    }
+
+    .btn-outline:hover {
+      background-color: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .btn-sm { font-size: 0.85rem; padding: 0.4rem 0.8rem; border-radius: var(--radius-sm); }
+    .btn-lg { font-size: 1.05rem; padding: 0.85rem 1.75rem; border-radius: var(--radius-lg); }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* 7. 테이블 */
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background-color: var(--bg-secondary);
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    .table th, .table td {
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .table th {
+      background-color: var(--bg-tertiary);
+      color: var(--text-secondary);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    .table tbody tr:hover {
+      background-color: var(--bg-primary);
+    }
+
+    /* 8. 서명 모듈 */
+    .signature-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 500px;
+    }
+
+    .signature-canvas-wrapper {
+      position: relative;
+      background-color: #fafbfc;
+      border: 2px dashed var(--border-color);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      height: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: crosshair;
+    }
+
+    [data-theme="dark"] .signature-canvas-wrapper {
+      background-color: #1a2233;
+    }
+
+    .signature-canvas-wrapper.active {
+      border-color: var(--color-primary);
+    }
+
+    .signature-canvas-wrapper canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    .signature-placeholder {
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      z-index: 1;
+    }
+
+    .signature-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .signature-modes {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .signature-upload-btn {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .signature-upload-btn input[type="file"] {
+      position: absolute;
+      top: 0;
+      right: 0;
+      min-width: 100%;
+      min-height: 100%;
+      font-size: 100px;
+      text-align: right;
+      filter: alpha(opacity=0);
+      opacity: 0;
+      outline: none;
+      cursor: inherit;
+      display: block;
+    }
+
+    /* 9. 빌더 드래그앤드롭 */
+    .builder-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr 320px;
+      gap: 1.5rem;
+      height: calc(100vh - 160px);
+      min-height: 550px;
+    }
+
+    @media (max-width: 1024px) {
+      .builder-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+    }
+
+    .builder-panel {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .builder-panel-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-primary);
+    }
+
+    .builder-palette {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+      flex: 1;
+    }
+
+    .palette-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background-color: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      cursor: grab;
+      font-size: 0.9rem;
+      font-weight: 500;
+      user-select: none;
+      transition: all var(--transition-fast);
+    }
+
+    .palette-item:hover {
+      border-color: var(--color-primary);
+      background-color: var(--color-primary-light);
+      color: var(--color-primary);
+    }
+
+    .builder-canvas-scroll {
+      flex: 1;
+      overflow-y: auto;
+      background-color: var(--bg-primary);
+      border: 2px dashed var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      transition: border-color var(--transition-fast);
+    }
+
+    .builder-canvas-scroll.dragover {
+      border-color: var(--color-primary);
+      background-color: var(--color-primary-light);
+      opacity: 0.85;
+    }
+
+    .canvas-empty-state {
+      margin: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      color: var(--text-muted);
+      text-align: center;
+      max-width: 300px;
+    }
+
+    .canvas-empty-state svg {
+      color: var(--text-muted);
+      width: 3.5rem;
+      height: 3.5rem;
+      stroke-width: 1.2;
+    }
+
+    .builder-item {
+      position: relative;
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .builder-item:hover, .builder-item.selected {
+      border-color: var(--color-primary);
+      box-shadow: var(--shadow-md);
+    }
+
+    .builder-item.selected {
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+
+    .builder-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.25rem;
+    }
+
+    .builder-item-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--color-primary);
+      letter-spacing: 0.05em;
+    }
+
+    .builder-item-actions {
+      display: flex;
+      gap: 0.25rem;
+      opacity: 0;
+      transition: opacity var(--transition-fast);
+    }
+
+    .builder-item:hover .builder-item-actions {
+      opacity: 1;
+    }
+
+    .builder-item-content {
+      pointer-events: none;
+      opacity: 0.85;
+    }
+
+    .builder-settings {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .settings-empty {
+      margin: auto;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    /* 10. 알림 및 모달 */
+    .toast-container {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      z-index: 999;
+    }
+
+    .toast {
+      background-color: var(--bg-secondary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--color-primary);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1.25rem;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      min-width: 280px;
+    }
+
+    .toast-success { border-left-color: var(--color-success); }
+    .toast-danger { border-left-color: var(--color-danger); }
+    .toast-warning { border-left-color: var(--color-warning); }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .dashboard-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--color-primary);
+      line-height: 1.1;
+    }
+
+    .stat-label {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .training-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .training-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+      margin: 1rem 0 1.5rem 0;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .training-actions {
+      display: flex;
+      gap: 0.5rem;
+      border-top: 1px solid var(--border-color);
+      padding-top: 1rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-primary { background-color: var(--color-primary-light); color: var(--color-primary); }
+    .badge-success { background-color: var(--color-success-light); color: var(--color-success); }
+    .badge-danger { background-color: var(--color-danger-light); color: var(--color-danger); }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 500;
+    }
+
+    .modal-container {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      width: 90%;
+      max-width: 500px;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+      animation: fadeIn 0.25s ease;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-title { font-size: 1.2rem; font-weight: 700; }
+    .modal-body { padding: 1.5rem; }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border-color);
+      background-color: var(--bg-primary);
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-secondary);
+      font-size: 1.5rem;
+    }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-primary); }
+    ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: var(--radius-full); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+  </style>
 </head>
 <body>
   <div id="app"></div>
-  <script type="module" src="/src/main.js"></script>
+
+  <!-- 자바스크립트 통합 스크립트 -->
+  <script>
+    // -------------------------------------------------------------
+    // [1] 전역 설정 및 가상 DB 시드
+    // -------------------------------------------------------------
+    const config = {
+      // 로컬 스토리지에 저장된 Google Apps Script Web App URL 반환 (기본값 설정)
+      getGasUrl() {
+        return localStorage.getItem('everyone_register_gas_url') || 'https://script.google.com/macros/s/AKfycbxaTFa-uBBiw9Li7m389tmIgP1u_-rEZIG1uYFP1qrmYZENEOTbIvzwjk3_zD05Ax52/exec';
+      },
+      setGasUrl(url) {
+        if (url) {
+          localStorage.setItem('everyone_register_gas_url', url.trim());
+        } else {
+          localStorage.removeItem('everyone_register_gas_url');
+        }
+      },
+      isMockMode() {
+        const url = this.getGasUrl();
+        return !url || url === 'mock' || !url.startsWith('https://script.google.com');
+      }
+    };
+
+    const DEFAULT_MOCK_SIGNATURE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAYAAACqQX6dAAAABmJLR0QA/wD/AP+gvaeTAAAClElEQVR4nO2cwUtUURzHP+8Zc1Ka/gHTKkSpFpG0CDdK2hS0ClK3LgK3LfoPQbsW/QdBtChasSAIwVVBtHAREaKICFpEE5lOZ97ToeMwzszoe/PeTOf7gZl57757Pvd373v3vd8dEEIIIYQQQgghhBBCCCFE0xGxAsvJqN161K49atceoVqPAgAM1XoMAGo9FvGqXQ+B9ShT6xG1HlHrcd4K1HoArEeRWo9vtd6dWo+o9TirQ5+NlGvj+Nnx1HqUqfUoU+tRptajTK3HJ2tS+B/11XoAan1p/hRQa5tQawE12i6P+7n/K6q0XfO13d9sYxM3t/Yxt/4u1W2/uG2/6C+u15hV7v87hBBC3BYR21P9ZNRuPWq3HrVrj1CtRwEAhmq9B8bXei/w+FovMNeK1XrUerZ9L/lW6zVjPRbxeVjEr/UoU+tRptajTK1HmVqPy7XxrV822sW2DdV6DKz3E6o9rPee1P4E1nvq+Z5a+6m1Taq01XP9hDq+p3v5+T3VbaD7m9s213G/Wn0AEEIIIYQQQgghhBBCtDIRK7CcjNqtR+3ao3btEar1KADAUK3HANR6PGBhvQd4WK/x9Dyr1WMRr9rjYfF6POw9tZ7t1Hpy1nsgW7156y1k61l/51XrmdZqfWn+TGPWsM1j1nbD2G7N1vOaZ9R7v4s46D2T1u+J0P9f9d7rV95Z1e+p915P7WeW95/fR/13Gj/fFm2W3P+K2H4+o/y6aPv/3H++WwghhBBC3DYR21P9ZNRuPWq3HrVrj1CtRwEAhmq9BwDVeiySVa3HA1a29ex11Xo8fF5XrcfD1vPUesf/WqX1fK72K1O/d5/t5/uq9f6z3v+p/wHwKqK2gXv2iAAAAABJRU5ErkJggg==';
+
+    const SEED_TRAININGS = [
+      {
+        id: 'tr_seed_1',
+        title: '2026학년도 제1차 학교운영위원회 협의연수',
+        date: '2026-06-26',
+        location: '본관 2층 회의실',
+        modules: [
+          { id: 'mod_1', type: 'divider', label: '기본 정보' },
+          { id: 'mod_2', type: 'single_select', label: '위원 구분', required: true, options: ['교원위원', '학부모위원', '지역위원'] },
+          { id: 'mod_3', type: 'divider', label: '서명 및 동의' },
+          { id: 'mod_4', type: 'checkbox', label: '개인정보 수집 및 연수 시간 등재 동의', required: true, options: ['동의합니다.'] },
+          { id: 'mod_5', type: 'signature', label: '참석자 자필서명', required: true }
+        ],
+        createdAt: '2026-06-26T12:00:00.000Z'
+      },
+      {
+        id: 'tr_seed_2',
+        title: '2026학년도 교직원 심폐소생술 및 응급처치 교육',
+        date: '2026-07-03',
+        location: '체육관',
+        modules: [
+          { id: 'mod_201', type: 'short_text', label: '소속 (부서명)', required: true, placeholder: '예: 교무기획부, 행정실' },
+          { id: 'mod_202', type: 'dropdown', label: '직위', required: true, options: ['교사', '부장교사', '교감', '교장', '행정직원', '공무직', '기타'] },
+          { id: 'mod_203', type: 'time', label: '입장 시간', required: true },
+          { id: 'mod_204', type: 'signature', label: '교육 이수 서명', required: true }
+        ],
+        createdAt: '2026-06-26T12:30:00.000Z'
+      }
+    ];
+
+    const SEED_RESPONSES = {
+      'tr_seed_1': [
+        { timestamp: '2026-06-26T13:10:00.000Z', name: '홍길동', responses: { 'mod_2': '교원위원', 'mod_4': ['동의합니다.'], 'mod_5': DEFAULT_MOCK_SIGNATURE } },
+        { timestamp: '2026-06-26T13:15:00.000Z', name: '김영희', responses: { 'mod_2': '학부모위원', 'mod_4': ['동의합니다.'], 'mod_5': DEFAULT_MOCK_SIGNATURE } },
+        { timestamp: '2026-06-26T13:22:00.000Z', name: '이철수', responses: { 'mod_2': '지역위원', 'mod_4': ['동의합니다.'], 'mod_5': DEFAULT_MOCK_SIGNATURE } }
+      ],
+      'tr_seed_2': [
+        { timestamp: '2026-06-26T13:05:00.000Z', name: '강감찬', responses: { 'mod_201': '체육진로부', 'mod_202': '부장교사', 'mod_203': '13:02', 'mod_204': DEFAULT_MOCK_SIGNATURE } }
+      ]
+    };
+
+    function initializeLocalStorageMock() {
+      if (!localStorage.getItem('everyone_register_trainings')) {
+        localStorage.setItem('everyone_register_trainings', JSON.stringify(SEED_TRAININGS));
+      }
+      Object.keys(SEED_RESPONSES).forEach(trId => {
+        const key = `everyone_register_responses_${trId}`;
+        if (!localStorage.getItem(key)) {
+          localStorage.setItem(key, JSON.stringify(SEED_RESPONSES[trId]));
+        }
+      });
+      if (!localStorage.getItem('everyone_register_admin_pw')) {
+        localStorage.setItem('everyone_register_admin_pw', '1234');
+      }
+    }
+    initializeLocalStorageMock();
+
+    // -------------------------------------------------------------
+    // [2] 알림 시스템 (Toast)
+    // -------------------------------------------------------------
+    let toastContainer = null;
+    function showToast(message, type = 'info', duration = 3500) {
+      if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container';
+        document.body.appendChild(toastContainer);
+      }
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      
+      let icon = '';
+      if (type === 'success') {
+        icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>';
+      } else if (type === 'danger') {
+        icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>';
+      } else {
+        icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></svg>';
+      }
+
+      toast.innerHTML = `${icon}<span>${message}</span>`;
+      toastContainer.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+
+    // -------------------------------------------------------------
+    // [3] API 통신 모듈
+    // -------------------------------------------------------------
+    const api = {
+      async _request(action, payload = {}) {
+        if (config.isMockMode()) {
+          return this._mockRequest(action, payload);
+        }
+        const gasUrl = config.getGasUrl();
+        try {
+          const response = await fetch(gasUrl, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action, ...payload })
+          });
+          const data = await response.json();
+          if (data.status === 'error') throw new Error(data.message);
+          return data.data;
+        } catch (error) {
+          console.error(`GAS API Error (${action}):`, error);
+          throw error;
+        }
+      },
+
+      _mockRequest(action, payload) {
+        return new Promise((resolve, reject) => {
+          setTimeout(() => {
+            try {
+              const trainingsKey = 'everyone_register_trainings';
+              let trainings = JSON.parse(localStorage.getItem(trainingsKey) || '[]');
+
+              switch (action) {
+                case 'adminLogin':
+                  const savedPw = localStorage.getItem('everyone_register_admin_pw') || '1234';
+                  if (payload.password === savedPw) {
+                    const token = 'mock_token_' + Math.random().toString(36).substring(2);
+                    localStorage.setItem('everyone_register_session', token);
+                    resolve({ success: true, token });
+                  } else {
+                    reject(new Error('비밀번호가 일치하지 않습니다.'));
+                  }
+                  break;
+                case 'getTrainings':
+                  resolve(trainings);
+                  break;
+                case 'getForm':
+                  const tr = trainings.find(t => t.id === payload.id);
+                  if (tr) resolve(tr);
+                  else reject(new Error('연수를 찾을 수 없습니다.'));
+                  break;
+                case 'createTraining':
+                  const newId = 'tr_' + Date.now();
+                  const newTr = {
+                    id: newId,
+                    title: payload.title,
+                    date: payload.date,
+                    location: payload.location,
+                    modules: payload.modules || [],
+                    createdAt: new Date().toISOString()
+                  };
+                  trainings.unshift(newTr);
+                  localStorage.setItem(trainingsKey, JSON.stringify(trainings));
+                  resolve(newTr);
+                  break;
+                case 'updateForm':
+                  const idx = trainings.findIndex(t => t.id === payload.id);
+                  if (idx !== -1) {
+                    trainings[idx].modules = payload.modules;
+                    localStorage.setItem(trainingsKey, JSON.stringify(trainings));
+                    resolve(trainings[idx]);
+                  } else reject(new Error('연수를 찾을 수 없습니다.'));
+                  break;
+                case 'deleteTraining':
+                  trainings = trainings.filter(t => t.id !== payload.id);
+                  localStorage.setItem(trainingsKey, JSON.stringify(trainings));
+                  localStorage.removeItem(`everyone_register_responses_${payload.id}`);
+                  resolve({ success: true });
+                  break;
+                case 'submitResponse':
+                  const rKey = `everyone_register_responses_${payload.trainingId}`;
+                  const resps = JSON.parse(localStorage.getItem(rKey) || '[]');
+                  resps.push({ timestamp: new Date().toISOString(), name: payload.name, responses: payload.responses });
+                  localStorage.setItem(rKey, JSON.stringify(resps));
+                  resolve({ success: true });
+                  break;
+                case 'getResponses':
+                  const respKey = `everyone_register_responses_${payload.id}`;
+                  resolve(JSON.parse(localStorage.getItem(respKey) || '[]'));
+                  break;
+                default:
+                  reject(new Error('알 수 없는 모의 액션'));
+              }
+            } catch (e) { reject(e); }
+          }, 80);
+        });
+      },
+
+      login(password) { return this._request('adminLogin', { password }); },
+      getTrainings() { return this._request('getTrainings'); },
+      getForm(id) { return this._request('getForm', { id }); },
+      submitResponse(tId, name, resps) { return this._request('submitResponse', { trainingId: tId, name, responses: resps }); },
+      createTraining(title, date, location, modules = []) { return this._request('createTraining', { title, date, location, modules }); },
+      deleteTraining(id) { return this._request('deleteTraining', { id }); },
+      updateForm(id, modules) { return this._request('updateForm', { id, modules }); },
+      getResponses(id) { return this._request('getResponses', { id }); },
+      resetMockData() {
+        localStorage.removeItem('everyone_register_trainings');
+        SEED_TRAININGS.forEach(t => localStorage.removeItem(`everyone_register_responses_${t.id}`));
+        initializeLocalStorageMock();
+        return true;
+      }
+    };
+
+    // -------------------------------------------------------------
+    // [4] 파일 출력 유틸 (CSV, PDF)
+    // -------------------------------------------------------------
+    function exportToCSV(filename, headers, rows) {
+      const escapeCSVField = (val) => {
+        if (val === null || val === undefined) return '';
+        let str = typeof val === 'object' ? JSON.stringify(val) : String(val);
+        if (str.startsWith('data:image/')) return '[서명 완료]';
+        if (str.includes('"') || str.includes(',') || str.includes('\n') || str.includes('\r')) {
+          str = str.replace(/"/g, '""');
+          return `"${str}"`;
+        }
+        return str;
+      };
+      const csvHeader = headers.map(escapeCSVField).join(',');
+      const csvBody = rows.map(row => row.map(escapeCSVField).join(',')).join('\r\n');
+      const csvContent = '\uFEFF' + csvHeader + '\r\n' + csvBody;
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    let cachedFontBase64 = null;
+    const FONT_URLS = [
+      'https://fastly.jsdelivr.net/npm/@kfonts/nanum-gothic/fonts/NanumGothic-Regular.ttf',
+      'https://fonts.gstatic.com/s/nanumgothic/v23/PNggR5S2yDku0h8awQq4zJ4rIKIP4A.ttf'
+    ];
+
+    async function loadFontAsBase64(onProgress) {
+      if (cachedFontBase64) return cachedFontBase64;
+      for (let i = 0; i < FONT_URLS.length; i++) {
+        try {
+          if (onProgress) onProgress(`한글 글꼴 다운로드 중... (${i + 1}/${FONT_URLS.length})`);
+          const response = await fetch(FONT_URLS[i]);
+          if (!response.ok) throw new Error('Font load failed');
+          const blob = await response.blob();
+          const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result.substring(reader.result.indexOf(',') + 1));
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          cachedFontBase64 = base64;
+          return base64;
+        } catch (err) { console.warn(err); }
+      }
+      throw new Error('한글 폰트 로드 실패. 네트워크 상태를 확인해 주세요.');
+    }
+
+    async function exportToPDF(training, responses, onProgress) {
+      if (onProgress) onProgress('PDF 문서 준비 중...');
+      const fontBase64 = await loadFontAsBase64(onProgress);
+      
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      
+      doc.addFileToVFS('NanumGothic.ttf', fontBase64);
+      doc.addFont('NanumGothic.ttf', 'NanumGothic', 'normal');
+      doc.setFont('NanumGothic');
+
+      const margin = 20;
+      let currentY = 25;
+
+      doc.setFontSize(20);
+      doc.text('연수·협의회 출석등록부', margin, currentY);
+      currentY += 10;
+
+      doc.setDrawColor(79, 70, 229);
+      doc.setLineWidth(0.8);
+      doc.line(margin, currentY, 210 - margin, currentY);
+      currentY += 12;
+
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`연 수 명 :  ${training.title}`, margin, currentY); currentY += 7;
+      doc.text(`일      시 :  ${training.date}`, margin, currentY); currentY += 7;
+      doc.text(`장      소 :  ${training.location}`, margin, currentY); currentY += 7;
+      doc.text(`등 록 인 원 :  총 ${responses.length}명`, margin, currentY); currentY += 12;
+
+      const activeModules = training.modules.filter(m => m.type !== 'divider' && m.type !== 'info_text');
+      const columns = [{ header: '번호', dataKey: 'index' }, { header: '성명', dataKey: 'name' }];
+
+      const infoModules = activeModules.filter(m => m.type !== 'signature');
+      infoModules.forEach(mod => columns.push({ header: mod.label, dataKey: mod.id }));
+
+      const sigModule = activeModules.find(m => m.type === 'signature');
+      const hasSignature = !!sigModule;
+      if (hasSignature) columns.push({ header: sigModule.label || '서명', dataKey: 'signature' });
+
+      const rows = responses.map((resp, i) => {
+        const row = { index: String(i + 1), name: resp.name };
+        infoModules.forEach(mod => {
+          const val = resp.responses[mod.id];
+          row[mod.id] = val === undefined || val === null ? '' : (Array.isArray(val) ? val.join(', ') : String(val));
+        });
+        if (hasSignature) row['signature'] = resp.responses[sigModule.id] || '';
+        return row;
+      });
+
+      doc.autoTable({
+        columns: columns,
+        body: rows,
+        startY: currentY,
+        margin: { left: margin, right: margin },
+        styles: { font: 'NanumGothic', fontSize: 9, cellPadding: 4, valign: 'middle', lineColor: [226, 232, 240], lineWidth: 0.1 },
+        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'normal', halign: 'center' },
+        columnStyles: { index: { width: 12, halign: 'center' }, name: { width: 22, halign: 'center' }, signature: { width: 35, halign: 'center' } },
+        didDrawCell: function (data) {
+          if (data.column.dataKey === 'signature' && data.cell.section === 'body') {
+            const imgData = data.cell.raw;
+            if (imgData && imgData.startsWith('data:image/')) {
+              const cellW = data.cell.width;
+              const cellH = data.cell.height;
+              const padding = 2;
+              const targetW = cellW - padding * 2;
+              const targetH = cellH - padding * 2;
+              const x = data.cell.x + padding;
+              const y = data.cell.y + padding;
+              try { doc.addImage(imgData, 'PNG', x, y, targetW, targetH); } catch (e) { console.error(e); }
+            }
+          }
+        },
+        willDrawCell: function (data) {
+          if (data.column.dataKey === 'signature' && data.cell.section === 'body') {
+            data.row.height = 14;
+          }
+        }
+      });
+
+      const sanitizedTitle = training.title.replace(/[\\/:*?"<>|]/g, '_');
+      doc.save(`출석등록부_${sanitizedTitle}.pdf`);
+      if (onProgress) onProgress(null);
+    }
+
+    // -------------------------------------------------------------
+    // [5] 자필서명 클래스 (Signature Module)
+    // -------------------------------------------------------------
+    class SignatureModuleInstance {
+      constructor(container) {
+        this.container = container;
+        this.points = [];
+        this.isDrawing = false;
+        this.lastWidth = 2;
+        this.hasDrawn = false;
+        this.init();
+      }
+      init() {
+        this.container.innerHTML = `
+          <div class="signature-container">
+            <div class="signature-canvas-wrapper">
+              <canvas></canvas>
+              <div class="signature-placeholder">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m19 12-7-7-9 9c-1.25 1.25-1.25 3.28 0 4.53 1.25 1.25 3.28 1.25 4.53 0l11.5-11.5z"/><path d="m15 16-3-3"/><path d="m17 14-3-3"/><path d="m19 12-3-3"/></svg>
+                <span>이곳에 서명해 주세요</span>
+              </div>
+            </div>
+            <div class="signature-actions">
+              <div class="signature-modes">
+                <button type="button" class="btn btn-outline btn-sm signature-upload-btn">
+                  이미지 업로드
+                  <input type="file" accept="image/*" class="file-input">
+                </button>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm clear-btn">지우기</button>
+            </div>
+          </div>
+        `;
+        this.wrapper = this.container.querySelector('.signature-canvas-wrapper');
+        this.canvas = this.container.querySelector('canvas');
+        this.placeholder = this.container.querySelector('.signature-placeholder');
+        this.clearBtn = this.container.querySelector('.clear-btn');
+        this.fileInput = this.container.querySelector('.file-input');
+        
+        this.ctx = this.canvas.getContext('2d');
+        const rect = this.wrapper.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const w = rect.width || 450;
+        const h = rect.height || 180;
+        this.canvas.width = w * dpr;
+        this.canvas.height = h * dpr;
+        this.ctx.scale(dpr, dpr);
+        this.canvas.style.width = `${w}px`;
+        this.canvas.style.height = `${h}px`;
+
+        this.ctx.strokeStyle = '#1a1a2e';
+        this.ctx.lineJoin = 'round';
+        this.ctx.lineCap = 'round';
+        this.ctx.globalAlpha = 0.92;
+
+        this.canvas.addEventListener('pointerdown', (e) => this.startDraw(e));
+        this.canvas.addEventListener('pointermove', (e) => this.draw(e));
+        this.canvas.addEventListener('pointerup', () => this.endDraw());
+        this.canvas.addEventListener('pointercancel', () => this.endDraw());
+        this.clearBtn.addEventListener('click', () => this.clear());
+        this.fileInput.addEventListener('change', (e) => this.handleUpload(e));
+      }
+      startDraw(e) {
+        e.preventDefault();
+        this.isDrawing = true;
+        this.hasDrawn = true;
+        this.placeholder.style.display = 'none';
+        this.wrapper.classList.add('active');
+        const pos = this.getPos(e);
+        this.points = [{ x: pos.x, y: pos.y, time: Date.now() }];
+        this.ctx.beginPath();
+        this.ctx.arc(pos.x, pos.y, 0.5, 0, 2 * Math.PI);
+        this.ctx.fillStyle = '#1a1a2e';
+        this.ctx.fill();
+      }
+      draw(e) {
+        if (!this.isDrawing) return;
+        e.preventDefault();
+        const pos = this.getPos(e);
+        const now = Date.now();
+        const curr = { x: pos.x, y: pos.y, time: now };
+        this.points.push(curr);
+
+        if (this.points.length > 2) {
+          const prev = this.points[this.points.length - 2];
+          const dist = Math.sqrt(Math.pow(curr.x - prev.x, 2) + Math.pow(curr.y - prev.y, 2));
+          const diff = curr.time - prev.time;
+          const speed = diff > 0 ? dist / diff : 0;
+          
+          const targetW = Math.max(0.8, Math.min(3.5, 3.5 - speed * 0.25));
+          const newW = this.lastWidth * 0.7 + targetW * 0.3;
+          this.ctx.lineWidth = newW;
+          this.lastWidth = newW;
+
+          const p1 = this.points[this.points.length - 3];
+          const p2 = this.points[this.points.length - 2];
+          const p3 = this.points[this.points.length - 1];
+          const midX = (p2.x + p3.x) / 2;
+          const midY = (p2.y + p3.y) / 2;
+          const startMidX = (p1.x + p2.x) / 2;
+          const startMidY = (p1.y + p2.y) / 2;
+
+          this.ctx.beginPath();
+          this.ctx.moveTo(startMidX, startMidY);
+          this.ctx.quadraticCurveTo(p2.x, p2.y, midX, midY);
+          this.ctx.stroke();
+        }
+      }
+      endDraw() { this.isDrawing = false; this.wrapper.classList.remove('active'); }
+      getPos(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      }
+      clear() {
+        this.ctx.clearRect(0, 0, this.canvas.width / (window.devicePixelRatio || 1), this.canvas.height / (window.devicePixelRatio || 1));
+        this.points = [];
+        this.hasDrawn = false;
+        this.placeholder.style.display = 'flex';
+        this.fileInput.value = '';
+      }
+      handleUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            this.clear();
+            this.placeholder.style.display = 'none';
+            this.hasDrawn = true;
+            const w = this.canvas.width / (window.devicePixelRatio || 1);
+            const h = this.canvas.height / (window.devicePixelRatio || 1);
+            const scale = Math.min(w / img.width, h / img.height);
+            const x = (w - img.width * scale) / 2;
+            const y = (h - img.height * scale) / 2;
+            this.ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+      getValue() { return this.hasDrawn ? this.canvas.toDataURL('image/png') : null; }
+    }
+
+    // -------------------------------------------------------------
+    // [6] 모듈 렌더러
+    // -------------------------------------------------------------
+    function renderModule(mod, container) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'form-group';
+      wrapper.dataset.id = mod.id;
+
+      const showLabel = mod.type !== 'divider' && mod.type !== 'info_text';
+      if (showLabel) {
+        const labelEl = document.createElement('label');
+        labelEl.className = 'form-label';
+        labelEl.innerHTML = `${mod.label} ${mod.required ? '<span class="required">*</span>' : ''}`;
+        wrapper.appendChild(labelEl);
+      }
+
+      let getValue = () => '';
+      let validate = () => mod.required && !getValue() ? `${mod.label} 필드는 필수 입력 항목입니다.` : null;
+
+      switch (mod.type) {
+        case 'short_text': {
+          const input = document.createElement('input');
+          input.type = 'text'; input.className = 'form-control';
+          input.placeholder = mod.placeholder || '입력해 주세요';
+          wrapper.appendChild(input);
+          getValue = () => input.value.trim();
+          break;
+        }
+        case 'long_text': {
+          const textarea = document.createElement('textarea');
+          textarea.className = 'form-control';
+          textarea.placeholder = mod.placeholder || '내용을 입력해 주세요';
+          textarea.rows = mod.rows || 4;
+          wrapper.appendChild(textarea);
+          getValue = () => textarea.value.trim();
+          break;
+        }
+        case 'number': {
+          const input = document.createElement('input');
+          input.type = 'number'; input.className = 'form-control';
+          input.placeholder = mod.placeholder || '숫자 입력';
+          if (mod.min !== undefined && mod.min !== '') input.min = mod.min;
+          if (mod.max !== undefined && mod.max !== '') input.max = mod.max;
+          wrapper.appendChild(input);
+          getValue = () => input.value !== '' ? Number(input.value) : '';
+          validate = () => {
+            if (mod.required && input.value === '') return `${mod.label} 필드는 필수 입력 항목입니다.`;
+            if (input.value !== '') {
+              const val = Number(input.value);
+              if (mod.min !== undefined && mod.min !== '' && val < Number(mod.min)) return `${mod.label} 최소값(${mod.min}) 이상이어야 합니다.`;
+              if (mod.max !== undefined && mod.max !== '' && val > Number(mod.max)) return `${mod.label} 최대값(${mod.max}) 이하여야 합니다.`;
+            }
+            return null;
+          };
+          break;
+        }
+        case 'date': {
+          const input = document.createElement('input');
+          input.type = 'date'; input.className = 'form-control';
+          input.value = new Date().toISOString().split('T')[0];
+          wrapper.appendChild(input);
+          getValue = () => input.value;
+          break;
+        }
+        case 'time': {
+          const input = document.createElement('input');
+          input.type = 'time'; input.className = 'form-control';
+          const now = new Date();
+          input.value = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+          wrapper.appendChild(input);
+          getValue = () => input.value;
+          break;
+        }
+        case 'dropdown': {
+          const select = document.createElement('select');
+          select.className = 'form-select';
+          const def = document.createElement('option');
+          def.value = ''; def.textContent = '-- 선택해 주세요 --';
+          select.appendChild(def);
+          (mod.options || []).forEach(opt => {
+            const o = document.createElement('option'); o.value = opt; o.textContent = opt;
+            select.appendChild(o);
+          });
+          wrapper.appendChild(select);
+          getValue = () => select.value;
+          break;
+        }
+        case 'single_select': {
+          const group = document.createElement('div'); group.className = 'radio-group';
+          (mod.options || []).forEach(opt => {
+            const l = document.createElement('label'); l.className = 'option-control';
+            const r = document.createElement('input'); r.type = 'radio'; r.name = `radio_group_${mod.id}`; r.value = opt;
+            l.appendChild(r); l.appendChild(document.createTextNode(` ${opt}`));
+            group.appendChild(l);
+          });
+          wrapper.appendChild(group);
+          getValue = () => {
+            const active = group.querySelector('input[type="radio"]:checked');
+            return active ? active.value : '';
+          };
+          break;
+        }
+        case 'checkbox':
+        case 'multi_select': {
+          const group = document.createElement('div'); group.className = 'checkbox-group';
+          (mod.options || []).forEach(opt => {
+            const l = document.createElement('label'); l.className = 'option-control';
+            const c = document.createElement('input'); c.type = 'checkbox'; c.value = opt;
+            l.appendChild(c); l.appendChild(document.createTextNode(` ${opt}`));
+            group.appendChild(l);
+          });
+          wrapper.appendChild(group);
+          getValue = () => Array.from(group.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+          validate = () => mod.required && getValue().length === 0 ? `${mod.label} 필드는 최소 1개 이상 선택해야 합니다.` : null;
+          break;
+        }
+        case 'signature': {
+          const sigDiv = document.createElement('div');
+          wrapper.appendChild(sigDiv);
+          let sigInst = null;
+          setTimeout(() => { sigInst = new SignatureModuleInstance(sigDiv); }, 10);
+          getValue = () => sigInst ? sigInst.getValue() : null;
+          validate = () => {
+            const val = getValue();
+            return mod.required && !val ? `${mod.label} 서명이 누락되었습니다.` : null;
+          };
+          break;
+        }
+        case 'divider': {
+          const div = document.createElement('div');
+          div.style.marginTop = '2rem'; div.style.marginBottom = '1rem';
+          if (mod.label) {
+            const h = document.createElement('h3');
+            h.style.fontSize = '1.05rem'; h.style.color = 'var(--color-primary)';
+            h.textContent = mod.label; div.appendChild(h);
+          }
+          const hr = document.createElement('hr');
+          hr.style.border = 'none'; hr.style.height = '1px'; hr.style.backgroundColor = 'var(--border-color)';
+          div.appendChild(hr); wrapper.appendChild(div);
+          getValue = () => ''; validate = () => null;
+          break;
+        }
+        case 'info_text': {
+          const box = document.createElement('div');
+          box.style.padding = '0.9rem 1.1rem'; box.style.backgroundColor = 'var(--bg-tertiary)';
+          box.style.borderLeft = '4px solid var(--color-primary)'; box.style.fontSize = '0.875rem';
+          box.style.whiteSpace = 'pre-wrap'; box.textContent = mod.label || '';
+          wrapper.appendChild(box);
+          getValue = () => ''; validate = () => null;
+          break;
+        }
+      }
+      container.appendChild(wrapper);
+      return { element: wrapper, getValue, validate };
+    }
+
+    // -------------------------------------------------------------
+    // [7] 페이지 컴포넌트: UserPage (참가자 등록)
+    // -------------------------------------------------------------
+    class UserPage {
+      constructor(container, options = {}) {
+        this.container = container;
+        this.trainingId = options.trainingId || null;
+        this.trainings = [];
+        this.selectedTraining = null;
+        this.renderedModules = {};
+        this.init();
+      }
+      async init() {
+        this.container.innerHTML = `<div style="text-align:center; padding:3rem;">로딩 중...</div>`;
+        try {
+          this.trainings = await api.getTrainings();
+          this.render();
+        } catch (e) {
+          this.container.innerHTML = `<div class="card" style="max-width:500px; margin:2rem auto; text-align:center;">
+            <h3>데이터 로드 실패</h3><p>${e.message}</p>
+            <button class="btn btn-primary" onclick="location.reload()">다시 시도</button>
+          </div>`;
+        }
+      }
+      render() {
+        this.container.innerHTML = `
+          <div class="card" style="max-width: 600px; margin: 0 auto;">
+            <h2 class="card-title">연수·회의 출석 등록</h2>
+            <p class="card-subtitle">참석 정보를 입력해 주시기 바랍니다.</p>
+            <form id="register-form">
+              <div class="form-group" id="tr-select-group">
+                <label class="form-label">연수·회의 선택 <span class="required">*</span></label>
+                <select class="form-select" id="tr-select" required>
+                  <option value="">-- 참석할 연수를 선택하세요 --</option>
+                  ${this.trainings.map(t => `<option value="${t.id}">${t.title} (${t.date})</option>`).join('')}
+                </select>
+              </div>
+              <div id="dynamic-form-area" style="display: none;">
+                <div class="form-group">
+                  <label class="form-label">성명 <span class="required">*</span></label>
+                  <input type="text" class="form-control" id="user-name" placeholder="이름 입력" required>
+                </div>
+                <div id="modules-container"></div>
+                <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 1.5rem;">출석부 제출</button>
+              </div>
+            </form>
+          </div>
+        `;
+        this.form = this.container.querySelector('#register-form');
+        this.selectGroup = this.container.querySelector('#tr-select-group');
+        this.selectEl = this.container.querySelector('#tr-select');
+        this.formArea = this.container.querySelector('#dynamic-form-area');
+        this.nameInput = this.container.querySelector('#user-name');
+        this.modulesContainer = this.container.querySelector('#modules-container');
+
+        this.selectEl.addEventListener('change', () => this.handleTrainingChange());
+        this.form.addEventListener('submit', (e) => this.handleSubmit(e));
+
+        if (this.trainingId) {
+          if (this.trainings.some(t => t.id === this.trainingId)) {
+            this.selectEl.value = this.trainingId;
+            this.selectGroup.style.display = 'none';
+            this.handleTrainingChange();
+          } else showToast('연수가 존재하지 않습니다.', 'danger');
+        }
+      }
+      async handleTrainingChange() {
+        const id = this.selectEl.value;
+        if (!id) { this.formArea.style.display = 'none'; return; }
+        this.formArea.style.display = 'block';
+        this.modulesContainer.innerHTML = '로딩 중...';
+        try {
+          this.selectedTraining = await api.getForm(id);
+          this.renderModules();
+        } catch (e) { showToast(e.message, 'danger'); }
+      }
+      renderModules() {
+        this.modulesContainer.innerHTML = '';
+        this.renderedModules = {};
+        const mods = this.selectedTraining.modules || [];
+        mods.forEach(mod => {
+          this.renderedModules[mod.id] = renderModule(mod, this.modulesContainer);
+        });
+      }
+      async handleSubmit(e) {
+        e.preventDefault();
+        const name = this.nameInput.value.trim();
+        if (!name) { showToast('성명을 기입하세요', 'danger'); return; }
+
+        const responses = {};
+        const errs = [];
+        const mods = this.selectedTraining.modules || [];
+        
+        mods.forEach(mod => {
+          if (mod.type === 'divider' || mod.type === 'info_text') return;
+          const rend = this.renderedModules[mod.id];
+          if (rend) {
+            const err = rend.validate();
+            if (err) errs.push(err);
+            else responses[mod.id] = rend.getValue();
+          }
+        });
+
+        if (errs.length > 0) { showToast(errs[0], 'danger'); return; }
+
+        const btn = this.form.querySelector('button[type="submit"]');
+        btn.disabled = true; btn.textContent = '제출 중...';
+
+        try {
+          await api.submitResponse(this.selectedTraining.id, name, responses);
+          showToast('성공적으로 등록되었습니다.', 'success');
+          this.renderSuccess(name);
+        } catch (err) {
+          showToast(err.message, 'danger');
+          btn.disabled = false; btn.textContent = '출석부 제출';
+        }
+      }
+      renderSuccess(name) {
+        this.container.innerHTML = `
+          <div class="card" style="max-width: 500px; margin: 3rem auto; text-align: center;">
+            <h2 class="card-title">출석 등록 성공</h2>
+            <p style="margin-bottom: 2rem;"><strong>${name}</strong>님의 출석 서명이 접수되었습니다.</p>
+            <button class="btn btn-primary" id="btn-re">추가 대리 등록</button>
+          </div>
+        `;
+        this.container.querySelector('#btn-re').addEventListener('click', () => {
+          new UserPage(this.container, { trainingId: this.trainingId });
+        });
+      }
+    }
+
+    // -------------------------------------------------------------
+    // [8] 페이지 컴포넌트: AdminPage (관리 대시보드)
+    // -------------------------------------------------------------
+    class AdminPage {
+      constructor(container) {
+        this.container = container;
+        this.trainings = [];
+        this.isAuthenticated = false;
+        this.checkSession();
+      }
+      checkSession() {
+        const sess = localStorage.getItem('everyone_register_session');
+        if (sess && sess.startsWith('mock_token_')) {
+          this.isAuthenticated = true;
+          this.init();
+        } else this.renderLogin();
+      }
+      renderLogin() {
+        this.container.innerHTML = `
+          <div class="card" style="max-width: 400px; margin: 4rem auto;">
+            <h2 class="card-title" style="text-align:center;">관리자 로그인</h2>
+            <form id="login-form" style="margin-top:1.5rem;">
+              <div class="form-group">
+                <label class="form-label">비밀번호</label>
+                <input type="password" class="form-control" id="pw" required placeholder="기본 비밀번호: 1234">
+              </div>
+              <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;">확인</button>
+            </form>
+          </div>
+        `;
+        this.container.querySelector('#login-form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          try {
+            const res = await api.login(this.container.querySelector('#pw').value);
+            if (res.success) { this.isAuthenticated = true; this.init(); }
+          } catch (err) { showToast(err.message, 'danger'); }
+        });
+      }
+      async init() {
+        this.container.innerHTML = '대시보드 동기화 중...';
+        try {
+          this.trainings = await api.getTrainings();
+          this.render();
+        } catch (e) { showToast(e.message, 'danger'); }
+      }
+      async render() {
+        const counts = {};
+        let total = 0;
+        for (const t of this.trainings) {
+          try {
+            const rs = await api.getResponses(t.id);
+            counts[t.id] = rs.length; total += rs.length;
+          } catch { counts[t.id] = 0; }
+        }
+
+        const isMock = config.isMockMode();
+        const gasUrl = config.getGasUrl();
+
+        this.container.innerHTML = `
+          <div class="dashboard-stats">
+            <div class="stat-card"><span class="stat-value">${this.trainings.length}</span><span class="stat-label">생성된 서명부</span></div>
+            <div class="stat-card"><span class="stat-value">${total}</span><span class="stat-label">수집된 서명 건수</span></div>
+            <div class="stat-card" style="border-left:4px solid ${isMock ? 'var(--color-warning)' : 'var(--color-success)'}">
+              <span class="badge ${isMock ? 'badge-danger' : 'badge-success'}">${isMock ? '로컬 Mock DB' : '구글 시트 연동'}</span>
+              <span class="stat-label" style="font-size:0.75rem; text-overflow:ellipsis; overflow:hidden;">${isMock ? '로컬 브라우저 저장' : gasUrl}</span>
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; flex-wrap:wrap; gap:1rem;">
+            <div>
+              <h2 style="font-weight:700;">연수 및 출석부 대장</h2>
+              <p style="font-size:0.875rem; color:var(--text-secondary);">출석 설계 및 통계를 실시간 조회합니다.</p>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+              <button class="btn btn-outline" id="btn-logout">로그아웃</button>
+              <button class="btn btn-primary" id="btn-add-tr">새 연수 추가</button>
+            </div>
+          </div>
+
+          ${this.trainings.length === 0 ? `
+            <div class="card" style="text-align:center; padding:3rem;">
+              <p>생성된 연수가 없습니다. 새 연수를 추가해보세요.</p>
+            </div>
+          ` : `
+            <div class="dashboard-grid">
+              ${this.trainings.map(t => `
+                <div class="card training-card">
+                  <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                      <span class="badge badge-primary">${counts[t.id]}명 참석</span>
+                      <span style="font-size:0.75rem; color:var(--text-muted);">${t.id}</span>
+                    </div>
+                    <h3 class="card-title" style="font-size:1.1rem; margin-bottom:0.75rem;">${t.title}</h3>
+                    <div class="training-meta">
+                      <div class="meta-item">📅 ${t.date}</div>
+                      <div class="meta-item">📍 ${t.location}</div>
+                    </div>
+                  </div>
+                  <div class="training-actions" style="margin-top:1rem;">
+                    <a href="#/responses/${t.id}" class="btn btn-secondary btn-sm" style="flex:1;">대장 조회</a>
+                    <a href="#/builder?id=${t.id}" class="btn btn-outline btn-sm" style="flex:1;">설계</a>
+                    <button class="btn btn-outline btn-sm btn-del" data-id="${t.id}" style="color:var(--color-danger);">삭제</button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `}
+
+          <!-- 시스템 환경설정 -->
+          <div class="card" style="margin-top:3rem; border-top:4px solid var(--color-primary);">
+            <h3>⚙️ 데이터 연동 옵션</h3>
+            <p style="font-size:0.875rem; color:var(--text-secondary); margin-bottom:1rem;">
+              로컬에만 데이터가 저장되는 '로컬 Mock 모드'를 실제 공동 수집용으로 전환하려면 아래에 Google Apps Script 웹 앱 URL을 입력하세요.
+            </p>
+            <div class="form-group" style="max-width:650px;">
+              <label class="form-label">Google Apps Script Web App URL</label>
+              <div style="display:flex; gap:0.5rem;">
+                <input type="text" class="form-control" id="gas-url" value="${gasUrl}" placeholder="https://script.google.com/macros/s/.../exec">
+                <button class="btn btn-primary" id="btn-save-gas" style="white-space:nowrap;">저장</button>
+              </div>
+            </div>
+            <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+              <button class="btn btn-outline btn-sm" id="btn-reset-seed">Mock 데이터 강제 리셋</button>
+            </div>
+          </div>
+
+          <!-- 새 연수 팝업 모달 -->
+          <div class="modal-overlay" id="add-modal" style="display:none;">
+            <div class="modal-container">
+              <div class="modal-header"><h3>새 연수 등록</h3><button class="modal-close" id="btn-modal-close">&times;</button></div>
+              <form id="add-form">
+                <div class="modal-body">
+                  <div class="form-group"><label class="form-label">연수·회의명</label><input type="text" class="form-control" id="add-title" required placeholder="예: 2026학년도 성폭력 예방교육"></div>
+                  <div class="form-group"><label class="form-label">일시</label><input type="date" class="form-control" id="add-date" required></div>
+                  <div class="form-group"><label class="form-label">장소</label><input type="text" class="form-control" id="add-location" required placeholder="예: 다목적 강당"></div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" id="btn-modal-cancel">취소</button>
+                  <button type="submit" class="btn btn-primary">생성</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        `;
+
+        this.container.querySelector('#add-date').value = new Date().toISOString().split('T')[0];
+        this.bindEvents();
+      }
+      bindEvents() {
+        this.container.querySelector('#btn-logout').addEventListener('click', () => {
+          localStorage.removeItem('everyone_register_session');
+          showToast('로그아웃되었습니다.');
+          this.isAuthenticated = false;
+          this.renderLogin();
+        });
+
+        const modal = this.container.querySelector('#add-modal');
+        this.container.querySelector('#btn-add-tr').addEventListener('click', () => modal.style.display = 'flex');
+        
+        const close = () => { modal.style.display = 'none'; this.container.querySelector('#add-form').reset(); };
+        this.container.querySelector('#btn-modal-close').addEventListener('click', close);
+        this.container.querySelector('#btn-modal-cancel').addEventListener('click', close);
+
+        this.container.querySelector('#add-form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const title = this.container.querySelector('#add-title').value;
+          const date = this.container.querySelector('#add-date').value;
+          const location = this.container.querySelector('#add-location').value;
+          
+          const defaultMods = [{ id: 'mod_sig_default', type: 'signature', label: '자필 서명', required: true }];
+          
+          try {
+            const tr = await api.createTraining(title, date, location, defaultMods);
+            showToast('연수가 추가되었습니다.', 'success');
+            close();
+            window.location.hash = `#/builder?id=${tr.id}`;
+          } catch (err) { showToast(err.message, 'danger'); }
+        });
+
+        this.container.querySelectorAll('.btn-del').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const id = btn.dataset.id;
+            if (confirm('이 연수 및 수집된 서명 내역을 완전히 영구 삭제할까요?')) {
+              try {
+                await api.deleteTraining(id);
+                showToast('삭제되었습니다.', 'warning');
+                this.init();
+              } catch (err) { showToast(err.message, 'danger'); }
+            }
+          });
+        });
+
+        this.container.querySelector('#btn-save-gas').addEventListener('click', () => {
+          const url = this.container.querySelector('#gas-url').value.trim();
+          config.setGasUrl(url);
+          showToast(url ? 'Google Apps Script 연결 완료' : '로컬 모드로 전환', 'success');
+          this.init();
+        });
+
+        this.container.querySelector('#btn-reset-seed').addEventListener('click', () => {
+          if (confirm('로컬 메모리를 날리고 초기 설정으로 복원하시겠습니까?')) {
+            api.resetMockData();
+            showToast('복원되었습니다.', 'success');
+            this.init();
+          }
+        });
+      }
+    }
+
+    // -------------------------------------------------------------
+    // [9] 페이지 컴포넌트: FormBuilder (설문 양식 편집기)
+    // -------------------------------------------------------------
+    class FormBuilder {
+      constructor(container, options = {}) {
+        this.container = container;
+        this.trainingId = options.trainingId || null;
+        this.training = null;
+        this.modules = [];
+        this.selectedModuleId = null;
+        this.init();
+      }
+      async init() {
+        try {
+          this.training = await api.getForm(this.trainingId);
+          this.modules = this.training.modules || [];
+          this.render();
+        } catch (e) { showToast(e.message, 'danger'); window.location.hash = '#/admin'; }
+      }
+      render() {
+        this.container.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+            <div>
+              <span class="badge badge-primary">출석부 디자이너</span>
+              <h2 style="font-weight:700;">${this.training.title}</h2>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+              <a href="#/admin" class="btn btn-secondary">대시보드로</a>
+              <button class="btn btn-primary" id="btn-save-builder">출석 양식 저장</button>
+            </div>
+          </div>
+
+          <div class="builder-layout">
+            <div class="builder-panel">
+              <h3 class="builder-panel-title">필드 모듈 팔레트</h3>
+              <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:1rem;">클릭하여 캔버스 하단에 필드를 배치하세요.</p>
+              <div class="builder-palette">
+                ${MODULE_TYPES.map(m => `<div class="palette-item" data-type="${m.type}"><span>${m.name}</span></div>`).join('')}
+              </div>
+            </div>
+
+            <div class="builder-panel" style="flex:2;">
+              <h3 class="builder-panel-title">출석부 레이아웃 캔버스</h3>
+              <div class="builder-canvas-scroll" id="canvas-dropzone"></div>
+            </div>
+
+            <div class="builder-panel">
+              <h3 class="builder-panel-title">옵션 상세 구성</h3>
+              <div class="builder-settings" id="sidebar-settings">
+                <div class="settings-empty">필드를 선택해 옵션을 커스텀하세요.</div>
+              </div>
+            </div>
+          </div>
+        `;
+        this.canvas = this.container.querySelector('#canvas-dropzone');
+        this.sidebar = this.container.querySelector('#sidebar-settings');
+
+        this.bindEvents();
+        this.refreshCanvas();
+      }
+      bindEvents() {
+        this.container.querySelectorAll('.palette-item').forEach(item => {
+          item.addEventListener('click', () => this.addModule(item.dataset.type));
+        });
+        this.container.querySelector('#btn-save-builder').addEventListener('click', () => this.save());
+      }
+      addModule(type) {
+        const id = 'mod_' + Date.now() + Math.floor(Math.random()*100);
+        let label = '새 필드';
+        let extra = {};
+        switch (type) {
+          case 'signature': label = '자필 서명'; break;
+          case 'short_text': label = '단답형 기입란'; extra = { placeholder: '답변 입력' }; break;
+          case 'long_text': label = '장문형 기입란'; extra = { placeholder: '상세 내용 입력' }; break;
+          case 'number': label = '숫자 입력란'; extra = { placeholder: '숫자만 입력', min: '', max: '' }; break;
+          case 'single_select': label = '단일 선택'; extra = { options: ['옵션 1', '옵션 2'] }; break;
+          case 'checkbox': label = '체크 항목'; extra = { options: ['동의함'] }; break;
+          case 'dropdown': label = '드롭다운'; extra = { options: ['선택 1', '선택 2'] }; break;
+          case 'date': label = '날짜 입력'; break;
+          case 'time': label = '시간 입력'; break;
+          case 'divider': label = '섹션 제목'; break;
+          case 'info_text': label = '이곳에 연수 안내글을 적으세요.'; break;
+        }
+
+        const newMod = { id, type, label, required: type !== 'divider' && type !== 'info_text', ...extra };
+        this.modules.push(newMod);
+        this.selectedModuleId = id;
+        this.refreshCanvas();
+        this.refreshSidebar();
+      }
+      deleteModule(id, e) {
+        if(e) e.stopPropagation();
+        this.modules = this.modules.filter(m => m.id !== id);
+        if (this.selectedModuleId === id) this.selectedModuleId = null;
+        this.refreshCanvas();
+        this.refreshSidebar();
+      }
+      move(idx, dir, e) {
+        e.stopPropagation();
+        if (dir === 'up' && idx > 0) {
+          const t = this.modules[idx]; this.modules[idx] = this.modules[idx-1]; this.modules[idx-1] = t;
+        } else if (dir === 'down' && idx < this.modules.length - 1) {
+          const t = this.modules[idx]; this.modules[idx] = this.modules[idx+1]; this.modules[idx+1] = t;
+        }
+        this.refreshCanvas();
+      }
+      refreshCanvas() {
+        this.canvas.innerHTML = '';
+        if (this.modules.length === 0) {
+          this.canvas.innerHTML = `<div class="canvas-empty-state"><p>양식 요소가 비어있습니다. 왼쪽 팔레트에서 선택해 채워보세요.</p></div>`;
+          return;
+        }
+        this.modules.forEach((mod, idx) => {
+          const item = document.createElement('div');
+          const active = mod.id === this.selectedModuleId;
+          item.className = `builder-item ${active ? 'selected' : ''}`;
+          
+          item.innerHTML = `
+            <div class="builder-item-header">
+              <span class="builder-item-title">${mod.type}</span>
+              <div class="builder-item-actions">
+                <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();" id="up-${mod.id}">▲</button>
+                <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();" id="down-${mod.id}">▼</button>
+                <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();" id="del-${mod.id}">🗑</button>
+              </div>
+            </div>
+            <div style="font-weight:600;">${mod.label || '라벨 없음'} ${mod.required ? '<span style="color:var(--color-danger);">*</span>' : ''}</div>
+          `;
+          
+          item.addEventListener('click', () => {
+            this.selectedModuleId = mod.id;
+            this.refreshCanvas();
+            this.refreshSidebar();
+          });
+
+          this.canvas.appendChild(item);
+
+          item.querySelector(`#up-${mod.id}`).addEventListener('click', (e) => this.move(idx, 'up', e));
+          item.querySelector(`#down-${mod.id}`).addEventListener('click', (e) => this.move(idx, 'down', e));
+          item.querySelector(`#del-${mod.id}`).addEventListener('click', (e) => this.deleteModule(mod.id, e));
+        });
+      }
+      refreshSidebar() {
+        this.sidebar.innerHTML = '';
+        if (!this.selectedModuleId) {
+          this.sidebar.innerHTML = '<div class="settings-empty">필드를 선택해 옵션을 커스텀하세요.</div>';
+          return;
+        }
+        const mod = this.modules.find(m => m.id === this.selectedModuleId);
+        if (!mod) return;
+
+        const isLayout = mod.type === 'divider' || mod.type === 'info_text';
+        let html = `
+          <div class="form-group">
+            <label class="form-label">${isLayout ? '표시 내용' : '필드명 (라벨)'}</label>
+            ${mod.type === 'info_text' ? `
+              <textarea class="form-control" id="edit-lbl">${mod.label || ''}</textarea>
+            ` : `
+              <input type="text" class="form-control" id="edit-lbl" value="${mod.label || ''}">
+            `}
+          </div>
+        `;
+
+        if (!isLayout) {
+          html += `
+            <div class="form-group">
+              <label class="option-control">
+                <input type="checkbox" id="edit-req" ${mod.required ? 'checked' : ''}> 필수 기입란
+              </label>
+            </div>
+          `;
+        }
+
+        if (mod.type === 'short_text' || mod.type === 'long_text' || mod.type === 'number') {
+          html += `
+            <div class="form-group">
+              <label class="form-label">기본 안내문구(Placeholder)</label>
+              <input type="text" class="form-control" id="edit-ph" value="${mod.placeholder || ''}">
+            </div>
+          `;
+        }
+
+        if (mod.type === 'single_select' || mod.type === 'checkbox' || mod.type === 'dropdown') {
+          const opts = mod.options || [];
+          html += `
+            <div class="form-group">
+              <label class="form-label">옵션 값 리스트</label>
+              <div style="display:flex; flex-direction:column; gap:0.5rem;" id="opts-box">
+                ${opts.map((opt, oIdx) => `
+                  <div style="display:flex; gap:0.25rem;">
+                    <input type="text" class="form-control opt-in" data-idx="${oIdx}" value="${opt}">
+                    <button class="btn btn-secondary btn-del-opt" data-idx="${oIdx}" style="padding:0.55rem; color:var(--color-danger);">×</button>
+                  </div>
+                `).join('')}
+              </div>
+              <button class="btn btn-outline btn-sm" id="btn-add-opt" style="width:100%; margin-top:0.75rem;">+ 옵션 추가</button>
+            </div>
+          `;
+        }
+
+        this.sidebar.innerHTML = html;
+
+        this.sidebar.querySelector('#edit-lbl').addEventListener('input', (e) => {
+          mod.label = e.target.value; this.refreshCanvas();
+        });
+
+        const req = this.sidebar.querySelector('#edit-req');
+        if (req) req.addEventListener('change', (e) => { mod.required = e.target.checked; this.refreshCanvas(); });
+
+        const ph = this.sidebar.querySelector('#edit-ph');
+        if (ph) ph.addEventListener('input', (e) => mod.placeholder = e.target.value);
+
+        const addOpt = this.sidebar.querySelector('#btn-add-opt');
+        if (addOpt) {
+          addOpt.addEventListener('click', () => {
+            if (!mod.options) mod.options = [];
+            mod.options.push(`옵션 ${mod.options.length + 1}`);
+            this.refreshCanvas(); this.refreshSidebar();
+          });
+          this.sidebar.querySelectorAll('.opt-in').forEach(inp => {
+            inp.addEventListener('input', (e) => {
+              const oIdx = Number(inp.dataset.idx);
+              mod.options[oIdx] = e.target.value.trim();
+              this.refreshCanvas();
+            });
+          });
+          this.sidebar.querySelectorAll('.btn-del-opt').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const oIdx = Number(btn.dataset.idx);
+              mod.options.splice(oIdx, 1);
+              this.refreshCanvas(); this.refreshSidebar();
+            });
+          });
+        }
+      }
+      async save() {
+        const btn = this.container.querySelector('#btn-save-builder');
+        btn.disabled = true; btn.textContent = '저장 중...';
+        try {
+          await api.updateForm(this.trainingId, this.modules);
+          showToast('양식이 성공적으로 업로드되었습니다.', 'success');
+          setTimeout(() => window.location.hash = '#/admin', 1000);
+        } catch(e) { showToast(e.message, 'danger'); btn.disabled = false; btn.textContent = '출석 양식 저장'; }
+      }
+    }
+
+    // -------------------------------------------------------------
+    // [10] 페이지 컴포넌트: ResponseView (응답 대장 대조)
+    // -------------------------------------------------------------
+    class ResponseView {
+      constructor(container, options = {}) {
+        this.container = container;
+        this.trainingId = options.trainingId || null;
+        this.training = null;
+        this.responses = [];
+        this.init();
+      }
+      async init() {
+        try {
+          this.training = await api.getForm(this.trainingId);
+          this.responses = await api.getResponses(this.trainingId);
+          this.render();
+        } catch (e) { showToast(e.message, 'danger'); window.location.hash = '#/admin'; }
+      }
+      render() {
+        const shareLink = this.getShareLink();
+        const activeMods = (this.training.modules || []).filter(m => m.type !== 'divider' && m.type !== 'info_text');
+
+        this.container.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+            <div>
+              <span class="badge badge-success">출석 상태 현황</span>
+              <h2 style="font-weight:700;">${this.training.title}</h2>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+              <a href="#/admin" class="btn btn-secondary">대시보드로</a>
+              <button class="btn btn-outline" id="btn-share-link">등록 링크 복사</button>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:2rem; padding:1.25rem; border-left:4px solid var(--color-success);">
+            <div style="display:flex; gap:2rem; flex-wrap:wrap; font-size:0.9rem; color:var(--text-secondary);">
+              <div>📅 일시: ${this.training.date}</div>
+              <div>📍 장소: ${this.training.location}</div>
+              <div>👥 참석: ${this.responses.length}명</div>
+            </div>
+            <div style="margin-top:1rem; padding:0.5rem; background-color:var(--bg-primary); border-radius:var(--radius-sm); font-size:0.8rem; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border-color);">
+              <span style="font-family:monospace; text-overflow:ellipsis; overflow:hidden;">${shareLink}</span>
+              <span style="color:var(--color-primary); font-weight:600; cursor:pointer;" id="txt-share-copy">복사</span>
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-bottom:1rem;">
+            <button class="btn btn-secondary btn-sm" id="btn-csv" ${this.responses.length === 0 ? 'disabled' : ''}>CSV 내보내기</button>
+            <button class="btn btn-primary btn-sm" id="btn-pdf" ${this.responses.length === 0 ? 'disabled' : ''}>인쇄용 PDF 출력</button>
+          </div>
+
+          ${this.responses.length === 0 ? `
+            <div class="card" style="text-align:center; padding:4rem;">
+              <p>아직 수집된 응답이 없습니다.</p>
+            </div>
+          ` : `
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>No</th><th>등록 일시</th><th>성명</th>
+                    ${activeMods.map(m => `<th>${m.label}</th>`).join('')}
+                  </tr>
+                </thead>
+                <tbody>
+                  ${this.responses.map((resp, idx) => `
+                    <tr>
+                      <td style="text-align:center;">${idx + 1}</td>
+                      <td style="font-size:0.8rem;">${this.fmtDate(resp.timestamp)}</td>
+                      <td style="font-weight:700;">${resp.name}</td>
+                      ${activeMods.map(m => `<td>${this.renderVal(m.type, resp.responses[m.id])}</td>`).join('')}
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `}
+
+          <div id="loading-overlay" class="modal-overlay" style="display:none;">
+            <div class="card" style="max-width:300px; text-align:center; padding:2rem;">
+              <h4 style="margin-bottom:0.5rem;">PDF 생성 작업 중</h4>
+              <p id="loading-msg" style="font-size:0.85rem; color:var(--text-secondary);">폰트 다운로드 대기 중...</p>
+            </div>
+          </div>
+        `;
+        this.bindEvents();
+      }
+      fmtDate(iso) {
+        if(!iso) return '';
+        const d = new Date(iso);
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      }
+      renderVal(type, val) {
+        if (val === undefined || val === null) return '';
+        if (type === 'signature') {
+          if (val.startsWith('data:image/')) {
+            return `<img src="${val}" height="32" style="border:1px solid var(--border-color); background:#fafbfc; border-radius:4px; max-width:85px; object-fit:contain; display:block;" alt="서명">`;
+          }
+          return '<span style="color:var(--text-muted);">[서명 누락]</span>';
+        }
+        return Array.isArray(val) ? val.join(', ') : String(val);
+      }
+      getShareLink() {
+        const loc = window.location;
+        const base = loc.href.split('#')[0]; // 해시 이전 경로 추출
+        return `${base}#/user?id=${this.trainingId}`;
+      }
+      bindEvents() {
+        const link = this.getShareLink();
+        const copy = () => {
+          navigator.clipboard.writeText(link)
+            .then(() => showToast('공유 링크가 복사되었습니다.', 'success'))
+            .catch(() => showToast('복사 실패', 'danger'));
+        };
+        this.container.querySelector('#btn-share-link').addEventListener('click', copy);
+        this.container.querySelector('#txt-share-copy').addEventListener('click', copy);
+
+        const csv = this.container.querySelector('#btn-csv');
+        if (csv) {
+          csv.addEventListener('click', () => {
+            const hdrs = ['연번', '제출시간', '이름'];
+            const activeMods = (this.training.modules || []).filter(m => m.type !== 'divider' && m.type !== 'info_text');
+            activeMods.forEach(m => hdrs.push(m.label));
+
+            const rows = this.responses.map((resp, idx) => {
+              const row = [String(idx + 1), this.fmtDate(resp.timestamp), resp.name];
+              activeMods.forEach(m => row.push(resp.responses[m.id]));
+              return row;
+            });
+            exportToCSV(`출석대장_${this.training.title.replace(/[\\/:*?"<>|]/g, '_')}.csv`, hdrs, rows);
+            showToast('다운로드가 완료되었습니다.', 'success');
+          });
+        }
+
+        const pdf = this.container.querySelector('#btn-pdf');
+        if (pdf) {
+          pdf.addEventListener('click', async () => {
+            const ovr = this.container.querySelector('#loading-overlay');
+            const msg = this.container.querySelector('#loading-msg');
+            ovr.style.display = 'flex';
+            try {
+              await exportToPDF(this.training, this.responses, (p) => { if(p) msg.textContent = p; });
+              showToast('PDF 인쇄 파일을 전송했습니다.', 'success');
+            } catch(err) { showToast(err.message, 'danger'); }
+            finally { ovr.style.display = 'none'; }
+          });
+        }
+      }
+    }
+
+    const MODULE_TYPES = [
+      { type: 'signature', name: '✍ 자필 서명' },
+      { type: 'short_text', name: '📝 단답형 텍스트' },
+      { type: 'long_text', name: '📋 장문형 텍스트' },
+      { type: 'number', name: '🔢 숫자 입력' },
+      { type: 'single_select', name: '🔘 단일 선택 (라디오)' },
+      { type: 'checkbox', name: '☑ 복수 선택 (체크)' },
+      { type: 'dropdown', name: '▼ 드롭다운 선택' },
+      { type: 'date', name: '📅 날짜 선택' },
+      { type: 'time', name: '⏰ 시간 입력' },
+      { type: 'divider', name: '― 구분선 섹션' },
+      { type: 'info_text', name: 'ℹ 안내 텍스트' }
+    ];
+
+    // -------------------------------------------------------------
+    // [11] 해시 기반 라우터 및 테마 초기화
+    // -------------------------------------------------------------
+    function renderHeader() {
+      const h = document.createElement('header');
+      h.className = 'header';
+      h.innerHTML = `
+        <div class="header-container">
+          <a href="#/" class="logo"><div class="logo-icon">✍</div>모두의 연수등록부</a>
+          <div class="nav-links">
+            <a href="#/" class="nav-link" id="n-usr">참여자 등록</a>
+            <a href="#/admin" class="nav-link" id="n-adm">관리 대시보드</a>
+            <button id="theme-btn" class="theme-toggle" aria-label="테마"></button>
+          </div>
+        </div>
+      `;
+      document.getElementById('app').appendChild(h);
+      document.getElementById('theme-btn').addEventListener('click', toggleTheme);
+    }
+
+    function toggleTheme() {
+      const cur = document.documentElement.getAttribute('data-theme') || 'light';
+      const next = cur === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('everyone_register_theme', next);
+      updateThemeIcon(next);
+    }
+
+    function updateThemeIcon(theme) {
+      const btn = document.getElementById('theme-btn');
+      if (!btn) return;
+      if (theme === 'dark') {
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>`;
+      } else {
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
+      }
+    }
+
+    function updateActiveNav(hash) {
+      const u = document.getElementById('n-usr');
+      const a = document.getElementById('n-adm');
+      if (!u || !a) return;
+      u.classList.remove('active'); a.classList.remove('active');
+      if (hash === '#/' || hash === '' || hash.startsWith('#/user')) u.classList.add('active');
+      else a.classList.add('active');
+    }
+
+    function router() {
+      const app = document.getElementById('app');
+      let main = app.querySelector('.main-content');
+      if (!main) {
+        main = document.createElement('main'); main.className = 'main-content';
+        app.appendChild(main);
+      }
+      const hash = window.location.hash || '#/';
+      updateActiveNav(hash);
+
+      if (hash === '#/' || hash === '' || hash.startsWith('#/user')) {
+        const q = hash.includes('?') ? hash.split('?')[1] : '';
+        const params = new URLSearchParams(q);
+        new UserPage(main, { trainingId: params.get('id') });
+      } else if (hash === '#/admin') {
+        new AdminPage(main);
+      } else if (hash.startsWith('#/builder')) {
+        const q = hash.includes('?') ? hash.split('?')[1] : '';
+        const params = new URLSearchParams(q);
+        new FormBuilder(main, { trainingId: params.get('id') });
+      } else if (hash.startsWith('#/responses/')) {
+        const id = hash.split('/')[2];
+        new ResponseView(main, { trainingId: id });
+      } else {
+        main.innerHTML = `<div class="card" style="text-align:center; max-width:400px; margin:4rem auto;"><h2>404 Not Found</h2></div>`;
+      }
+    }
+
+    function initApp() {
+      document.getElementById('app').innerHTML = '';
+      renderHeader();
+      const savedTheme = localStorage.getItem('everyone_register_theme') || 'light';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      updateThemeIcon(savedTheme);
+      
+      window.addEventListener('hashchange', router);
+      router();
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
+  </script>
 </body>
 </html>
