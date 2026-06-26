@@ -1724,7 +1724,7 @@
               }).join('')}
             </tbody>
           </table>
-          <div class="footer-info">모두의 연수등록부 © ${new Date().getFullYear()}</div>
+          <div class="footer-info">ⓒ 2026. 창순기획 Co. All rights reserved.</div>
         </div>
         `;
       });
@@ -3785,6 +3785,17 @@
       document.getElementById('theme-btn').addEventListener('click', toggleTheme);
     }
 
+    function renderFooter() {
+      const f = document.createElement('footer');
+      f.className = 'app-footer';
+      f.innerHTML = `
+        <div class="footer-container" style="text-align: center; padding: 2rem 1.5rem; font-size: 0.85rem; color: var(--text-muted); border-top: 1px solid var(--border-color); display: flex; justify-content: center; align-items: center; background-color: var(--bg-primary); transition: background-color var(--transition-normal), border-color var(--transition-normal);">
+          <span>ⓒ 2026. 창순기획 Co. All rights reserved.</span>
+        </div>
+      `;
+      document.getElementById('app').appendChild(f);
+    }
+
     function toggleTheme() {
       const cur = document.documentElement.getAttribute('data-theme') || 'light';
       const next = cur === 'light' ? 'dark' : 'light';
@@ -3849,6 +3860,7 @@
       
       window.addEventListener('hashchange', router);
       router();
+      renderFooter();
     }
 
     if (document.readyState === 'loading') {
