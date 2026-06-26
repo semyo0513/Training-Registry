@@ -1,6 +1,6 @@
 import { api } from '../utils/api';
 import { config } from '../config';
-import { showToast } from '../main';
+import { showToast } from '../utils/toast';
 
 export class AdminPage {
   constructor(container) {

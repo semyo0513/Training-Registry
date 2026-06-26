@@ -1,7 +1,7 @@
 import { api } from '../utils/api';
 import { exportToCSV } from '../utils/csv';
 import { exportToPDF } from '../utils/pdf';
-import { showToast } from '../main';
+import { showToast } from '../utils/toast';
 
 export class ResponseView {
   constructor(container, options = {}) {

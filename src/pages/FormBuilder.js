@@ -1,5 +1,5 @@
 import { api } from '../utils/api';
-import { showToast } from '../main';
+import { showToast } from '../utils/toast';
 
 const MODULE_TYPES = [
   { type: 'signature', name: '✍ 자필 서명', icon: 'pen-tool' },

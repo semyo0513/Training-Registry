@@ -3,45 +3,7 @@ import { UserPage } from './pages/UserPage';
 import { AdminPage } from './pages/AdminPage';
 import { FormBuilder } from './pages/FormBuilder';
 import { ResponseView } from './pages/ResponseView';
-
-// -------------------------------------------------------------
-// 1. 글로벌 토스트 알림 시스템
-// -------------------------------------------------------------
-let toastContainer = null;
-
-export function showToast(message, type = 'info', duration = 3500) {
-  if (!toastContainer) {
-    toastContainer = document.createElement('div');
-    toastContainer.className = 'toast-container';
-    document.body.appendChild(toastContainer);
-  }
-
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  
-  // 타입별 아이콘 설정
-  let icon = '';
-  if (type === 'success') {
-    icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle-2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>';
-  } else if (type === 'danger') {
-    icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-triangle"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>';
-  } else if (type === 'warning') {
-    icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-circle"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>';
-  } else {
-    icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-info"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></svg>';
-  }
-
-  toast.innerHTML = `${icon}<span>${message}</span>`;
-  toastContainer.appendChild(toast);
-
-  // 나타나는 트랜지션 이후 지정된 시간 후에 제거
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(10px)';
-    toast.style.transition = 'all 0.3s ease';
-    setTimeout(() => toast.remove(), 300);
-  }, duration);
-}
+import { showToast } from './utils/toast';
 
 // -------------------------------------------------------------
 // 2. 다크 모드 토글 컨트롤
@@ -186,8 +148,9 @@ function initApp() {
   router(); // 최초 실행
 }
 
-document.addEventListener('DOMContentLoaded', initApp);
-// 만약 DOMContentLoaded가 이미 실행된 시점인 경우에도 즉시 초기화되도록 대응
-if (document.readyState === 'interactive' || document.readyState === 'complete') {
+// DOM 로드 상태에 따라 단 한 번만 초기화하도록 설정
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
   initApp();
 }

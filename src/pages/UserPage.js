@@ -1,6 +1,6 @@
 import { api } from '../utils/api';
 import { renderModule } from '../modules/ModuleRenderer';
-import { showToast } from '../main';
+import { showToast } from '../utils/toast';
 
 export class UserPage {
   constructor(container, options = {}) {
