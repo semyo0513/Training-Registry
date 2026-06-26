@@ -256,6 +256,7 @@
       margin-bottom: 0.5rem;
       color: var(--text-primary);
       white-space: pre-wrap; /* 여러 줄 약관/설명 대응 */
+      word-break: keep-all; /* 모바일 줄바꿈 가독성 개선 */
     }
 
     .form-label .required {
@@ -441,6 +442,7 @@
     .table th, .table td {
       padding: 0.85rem 1.25rem;
       border-bottom: 1px solid var(--border-color);
+      white-space: nowrap; /* 모바일 셀 텍스트 줄바꿈 방지 */
     }
 
     .table th {
@@ -866,6 +868,41 @@
     ::-webkit-scrollbar-track { background: var(--bg-primary); }
     ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: var(--radius-full); }
     ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* 모바일 반응형 미디어 쿼리 추가 */
+    @media (max-width: 768px) {
+      .main-content {
+        padding: 1rem 0.75rem;
+      }
+      .card {
+        padding: 1.25rem;
+      }
+      .header-container {
+        padding: 0.75rem 1rem;
+      }
+      .logo {
+        font-size: 1.1rem;
+      }
+      .nav-link {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.85rem;
+      }
+      .table th, .table td {
+        padding: 0.6rem 0.85rem;
+        font-size: 0.85rem;
+      }
+      .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+      }
+      .dashboard-stats {
+        grid-template-columns: 1fr;
+      }
+      .builder-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+    }
   </style>
 </head>
 <body>
@@ -895,6 +932,62 @@
 
     const DEFAULT_MOCK_SIGNATURE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAYAAACqQX6dAAAABmJLR0QA/wD/AP+gvaeTAAAClElEQVR4nO2cwUtUURzHP+8Zc1Ka/gHTKkSpFpG0CDdK2hS0ClK3LgK3LfoPQbsW/QdBtChasSAIwVVBtHAREaKICFpEE5lOZ97ToeMwzszoe/PeTOf7gZl57757Pvd373v3vd8dEEIIIYQQQgghhBBCCCFE0xGxAsvJqN161K49atceoVqPAgAM1XoMAGo9FvGqXQ+B9ShT6xG1HlHrcd4K1HoArEeRWo9vtd6dWo+o9TirQ5+NlGvj+Nnx1HqUqfUoU+tRptajTK3HJ2tS+B/11XoAan1p/hRQa5tQawE12i6P+7n/K6q0XfO13d9sYxM3t/Yxt/4u1W2/uG2/6C+u15hV7v87hBBC3BYR21P9ZNRuPWq3HrVrj1CtRwEAhmq9B8bXei/w+FovMNeK1XrUerZ9L/lW6zVjPRbxeVjEr/UoU+tRptajTK1HmVqPy7XxrV822sW2DdV6DKz3E6o9rPee1P4E1nvq+Z5a+6m1Taq01XP9hDq+p3v5+T3VbaD7m9s213G/Wn0AEEIIIYQQQgghhBBCCCFE0xGxAsvJqN161K49atceoVqPAgAM1XoMAGo9FvGqXQ+B9ShT6xG1HlHrcd4K1HoArEeRWo9vtd6dWo+o9TirQ5+NlGvj+Nnx1HqUqfUoU+tRptajTK3HJ2tS+B/11XoAan1p/hRQa5tQawE12i6P+7n/K6q0XfO13d9sYxM3t/Yxt/4u1W2/uG2/6C+u15hV7v87hBBC3BYR21P9ZNRuPWq3HrVrj1CtRwEAhmq9BwDVeiySVa3HA1a29ex11Xo8fF5XrcfD1vPUesf/WqX1fK72K1O/d5/t5/uq9f6z3v+p/wHwKqK2gXv2iAAAAABJRU5ErkJggg==';
 
+    // -------------------------------------------------------------
+    // [0] IndexedDB 한글 폰트 캐시 관리자
+    // -------------------------------------------------------------
+    const FontCacheDB = {
+      DB_NAME: 'EveryoneRegisterFontDB',
+      STORE_NAME: 'fonts',
+      FONT_KEY: 'KoPubWorldBatang',
+      
+      open() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(this.DB_NAME, 1);
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => resolve(request.result);
+          request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+              db.createObjectStore(this.STORE_NAME);
+            }
+          };
+        });
+      },
+      
+      async save(base64) {
+        const db = await this.open();
+        return new Promise((resolve, reject) => {
+          const transaction = db.transaction(this.STORE_NAME, 'readwrite');
+          const store = transaction.objectStore(this.STORE_NAME);
+          const request = store.put(base64, this.FONT_KEY);
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => resolve(true);
+        });
+      },
+      
+      async get() {
+        const db = await this.open();
+        return new Promise((resolve, reject) => {
+          const transaction = db.transaction(this.STORE_NAME, 'readonly');
+          const store = transaction.objectStore(this.STORE_NAME);
+          const request = store.get(this.FONT_KEY);
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => resolve(request.result || null);
+        });
+      },
+
+      async remove() {
+        const db = await this.open();
+        return new Promise((resolve, reject) => {
+          const transaction = db.transaction(this.STORE_NAME, 'readwrite');
+          const store = transaction.objectStore(this.STORE_NAME);
+          const request = store.delete(this.FONT_KEY);
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => resolve(true);
+        });
+      }
+    };
+
     const SEED_TRAININGS = [
       {
         id: 'tr_seed_1',
@@ -908,6 +1001,7 @@
           { id: 'mod_4', type: 'checkbox', label: '개인정보 수집 및 연수 시간 등재 동의\n\n- 수집 범위: 소속, 성명, 서명 이미지\n- 보유 기한: 연수 증빙 종료시까지', required: true, options: ['동의합니다.', '동의하지 않습니다.'] },
           { id: 'mod_5', type: 'signature', label: '참석자 자필서명', required: true }
         ],
+        participants: [],
         createdAt: '2026-06-26T12:00:00.000Z'
       },
       {
@@ -921,6 +1015,7 @@
           { id: 'mod_203', type: 'time', label: '입장 시간', required: true },
           { id: 'mod_204', type: 'signature', label: '교육 이수 서명', required: true }
         ],
+        participants: [],
         createdAt: '2026-06-26T12:30:00.000Z'
       }
     ];
@@ -1043,6 +1138,7 @@
                     date: payload.date,
                     location: payload.location,
                     modules: payload.modules || [],
+                    participants: payload.participants || [],
                     createdAt: new Date().toISOString()
                   };
                   trainings.unshift(newTr);
@@ -1055,6 +1151,17 @@
                     trainings[idx].modules = payload.modules;
                     localStorage.setItem(trainingsKey, JSON.stringify(trainings));
                     resolve(trainings[idx]);
+                  } else reject(new Error('연수를 찾을 수 없습니다.'));
+                  break;
+                case 'updateTraining':
+                  const idxTr = trainings.findIndex(t => t.id === payload.id);
+                  if (idxTr !== -1) {
+                    trainings[idxTr].title = payload.title;
+                    trainings[idxTr].date = payload.date;
+                    trainings[idxTr].location = payload.location;
+                    trainings[idxTr].participants = payload.participants || [];
+                    localStorage.setItem(trainingsKey, JSON.stringify(trainings));
+                    resolve(trainings[idxTr]);
                   } else reject(new Error('연수를 찾을 수 없습니다.'));
                   break;
                 case 'deleteTraining':
@@ -1096,7 +1203,8 @@
       getTrainings() { return this._request('getTrainings'); },
       getForm(id) { return this._request('getForm', { id }); },
       submitResponse(tId, name, resps) { return this._request('submitResponse', { trainingId: tId, name, responses: resps }); },
-      createTraining(title, date, location, modules = []) { return this._request('createTraining', { title, date, location, modules }); },
+      createTraining(title, date, location, modules = [], participants = []) { return this._request('createTraining', { title, date, location, modules, participants }); },
+      updateTraining(id, title, date, location, participants = []) { return this._request('updateTraining', { id, title, date, location, participants }); },
       deleteTraining(id) { return this._request('deleteTraining', { id }); },
       updateForm(id, modules) { return this._request('updateForm', { id, modules }); },
       getResponses(id) { return this._request('getResponses', { id }); },
@@ -1145,23 +1253,77 @@
 
     async function loadFontAsBase64(onProgress) {
       if (cachedFontBase64) return cachedFontBase64;
+
+      // 1. IndexedDB 캐시 조회
+      try {
+        if (onProgress) onProgress('IndexedDB에서 로컬 폰트 조회 중...');
+        const cached = await FontCacheDB.get();
+        if (cached) {
+          cachedFontBase64 = cached;
+          return cached;
+        }
+      } catch (err) {
+        console.warn('IndexedDB font read error:', err);
+      }
+
+      // 2. 로컬 파일/폴더 내의 KoPubWorld Batang 폰트 fetch 시도
+      const localFontPaths = [
+        './KoPubWorld Batang Medium.ttf',
+        './KoPubWorld Batang Bold.ttf',
+        './KoPubWorld Batang Light.ttf',
+        './KoPubWorld_Batang_Medium.ttf'
+      ];
+
+      for (const path of localFontPaths) {
+        try {
+          if (onProgress) onProgress(`로컬 폰트 로드 시도 중 (${path.split('/').pop()})...`);
+          const response = await fetch(path);
+          if (response.ok) {
+            const blob = await response.blob();
+            const base64 = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result.substring(reader.result.indexOf(',') + 1));
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+            cachedFontBase64 = base64;
+            try {
+              await FontCacheDB.save(base64);
+            } catch (cacheErr) {
+              console.warn('Failed to cache fetched font to IndexedDB:', cacheErr);
+            }
+            return base64;
+          }
+        } catch (err) {
+          console.warn(`Fetch failed for local path ${path}:`, err);
+        }
+      }
+
+      // 3. 기존 CDN 로드 폴백 시도
       for (let i = 0; i < FONT_URLS.length; i++) {
         try {
-          if (onProgress) onProgress(`한글 글꼴 다운로드 중... (${i + 1}/${FONT_URLS.length})`);
+          if (onProgress) onProgress(`온라인 CDN 폰트 다운로드 중... (${i + 1}/${FONT_URLS.length})`);
           const response = await fetch(FONT_URLS[i]);
-          if (!response.ok) throw new Error('Font load failed');
-          const blob = await response.blob();
-          const base64 = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result.substring(reader.result.indexOf(',') + 1));
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-          cachedFontBase64 = base64;
-          return base64;
+          if (response.ok) {
+            const blob = await response.blob();
+            const base64 = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result.substring(reader.result.indexOf(',') + 1));
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+            cachedFontBase64 = base64;
+            try {
+              await FontCacheDB.save(base64);
+            } catch (cacheErr) {
+              console.warn('Failed to cache CDN font to IndexedDB:', cacheErr);
+            }
+            return base64;
+          }
         } catch (err) { console.warn(err); }
       }
-      throw new Error('한글 폰트 로드 실패. 네트워크 상태를 확인해 주세요.');
+
+      throw new Error('폰트 로드 실패. PDF 인쇄 상세 옵션에서 폴더 내의 KoPubWorld Batang 폰트(.ttf) 파일을 등록해 주세요.');
     }
 
     async function exportToPDF(training, responses, onProgress, printOptions = {}) {
@@ -1175,7 +1337,7 @@
         fontLoaded = true;
       } catch (err) {
         console.warn('Font load failed, falling back to default font:', err);
-        showToast('행정망 방화벽 정책 등으로 인해 한글 서체 다운로드에 실패했습니다. 기본 서체(Helvetica)로 다운로드를 마칩니다. (한글이 깨져 표시될 수 있습니다)', 'warning', 6500);
+        showToast('로컬 한글 폰트 로드 및 다운로드에 실패했습니다. 기본 서체(Helvetica)로 다운로드를 진행합니다. (한글이 깨질 수 있습니다. 모달에서 직접 폰트를 업로드해주세요.)', 'warning', 6500);
       }
 
       const { jsPDF } = window.jspdf;
@@ -1183,9 +1345,9 @@
       const margin = 20;
 
       if (fontLoaded && fontBase64) {
-        doc.addFileToVFS('NanumGothic.ttf', fontBase64);
-        doc.addFont('NanumGothic.ttf', 'NanumGothic', 'normal');
-        doc.setFont('NanumGothic');
+        doc.addFileToVFS('KoPubWorldBatang.ttf', fontBase64);
+        doc.addFont('KoPubWorldBatang.ttf', 'KoPubWorldBatang', 'normal');
+        doc.setFont('KoPubWorldBatang');
       }
 
       // 출력용 헤더 정의
@@ -1268,7 +1430,7 @@
             body: chunks[i],
             startY: pageStartY,
             margin: { left: margin, right: margin },
-            styles: { font: fontLoaded ? 'NanumGothic' : 'helvetica', fontSize: 8.5, cellPadding: 3.5, valign: 'middle', lineColor: [226, 232, 240], lineWidth: 0.1 },
+            styles: { font: fontLoaded ? 'KoPubWorldBatang' : 'helvetica', fontSize: 8.5, cellPadding: 3.5, valign: 'middle', lineColor: [226, 232, 240], lineWidth: 0.1 },
             headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'normal', halign: 'center' },
             columnStyles: { index: { width: 12, halign: 'center' }, timestamp: { width: 25, halign: 'center' }, name: { width: 20, halign: 'center' }, signature: { width: 35, halign: 'center' } },
             didDrawCell: function (data) {
@@ -1308,7 +1470,7 @@
           body: rows,
           startY: 62,
           margin: { left: margin, right: margin },
-          styles: { font: fontLoaded ? 'NanumGothic' : 'helvetica', fontSize: 8.5, cellPadding: 3.5, valign: 'middle', lineColor: [226, 232, 240], lineWidth: 0.1 },
+          styles: { font: fontLoaded ? 'KoPubWorldBatang' : 'helvetica', fontSize: 8.5, cellPadding: 3.5, valign: 'middle', lineColor: [226, 232, 240], lineWidth: 0.1 },
           headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'normal', halign: 'center' },
           columnStyles: { index: { width: 12, halign: 'center' }, timestamp: { width: 25, halign: 'center' }, name: { width: 20, halign: 'center' }, signature: { width: 35, halign: 'center' } },
           didDrawCell: function (data) {
@@ -1972,10 +2134,11 @@
                       <div class="meta-item">📍 ${t.location}</div>
                     </div>
                   </div>
-                  <div class="training-actions" style="margin-top:1rem;">
-                    <a href="#/responses/${t.id}" class="btn btn-secondary btn-sm" style="flex:1;">대장 조회</a>
-                    <a href="#/builder?id=${t.id}" class="btn btn-outline btn-sm" style="flex:1;">설계</a>
-                    <button class="btn btn-outline btn-sm btn-del" data-id="${t.id}" style="color:var(--color-danger);">삭제</button>
+                  <div class="training-actions" style="margin-top:1rem; flex-wrap:wrap; gap:0.375rem;">
+                    <a href="#/responses/${t.id}" class="btn btn-secondary btn-sm" style="flex:1; min-width:70px;">대장 조회</a>
+                    <a href="#/builder?id=${t.id}" class="btn btn-outline btn-sm" style="flex:1; min-width:55px;">설계</a>
+                    <button class="btn btn-outline btn-sm btn-edit" data-id="${t.id}" style="flex:1; min-width:55px;">수정</button>
+                    <button class="btn btn-outline btn-sm btn-del" data-id="${t.id}" style="color:var(--color-danger); flex:1; min-width:55px;">삭제</button>
                   </div>
                 </div>
               `).join('')}
@@ -2002,17 +2165,53 @@
 
           <!-- 새 연수 팝업 모달 -->
           <div class="modal-overlay" id="add-modal" style="display:none;">
-            <div class="modal-container">
+            <div class="modal-container" style="max-width:500px;">
               <div class="modal-header"><h3>새 연수 등록</h3><button class="modal-close" id="btn-modal-close">&times;</button></div>
               <form id="add-form">
                 <div class="modal-body">
                   <div class="form-group"><label class="form-label">연수·회의명</label><input type="text" class="form-control" id="add-title" required placeholder="예: 2026학년도 성폭력 예방교육"></div>
                   <div class="form-group"><label class="form-label">일시</label><input type="date" class="form-control" id="add-date" required></div>
                   <div class="form-group"><label class="form-label">장소</label><input type="text" class="form-control" id="add-location" required placeholder="예: 다목적 강당"></div>
+                  <div class="form-group">
+                    <label class="form-label">사전 참가자 명단 등록 (선택)</label>
+                    <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.5rem; line-height:1.4;">
+                      한 줄에 한 명씩 '이름,부서명' 형식으로 입력하세요.<br>
+                      (예: 홍길동,교무부 또는 김영희)
+                    </p>
+                    <textarea class="form-control" id="add-participants" style="min-height:120px; font-family:monospace;" placeholder="홍길동,교무부&#10;김철수,행정실&#10;이영희"></textarea>
+                  </div>
                 </div>
                 <div class="modal-footer">
                   <button type="button" class="btn btn-secondary" id="btn-modal-cancel">취소</button>
                   <button type="submit" class="btn btn-primary">생성</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- 연수 정보 수정 및 명단 등록 팝업 모달 -->
+          <div class="modal-overlay" id="edit-modal" style="display:none;">
+            <div class="modal-container" style="max-width:500px;">
+              <div class="modal-header"><h3>연수 정보 수정</h3><button class="modal-close" id="btn-edit-modal-close">&times;</button></div>
+              <form id="edit-form">
+                <input type="hidden" id="edit-id">
+                <div class="modal-body">
+                  <div class="form-group"><label class="form-label">연수·회의명</label><input type="text" class="form-control" id="edit-title" required></div>
+                  <div class="form-group"><label class="form-label">일시</label><input type="date" class="form-control" id="edit-date" required></div>
+                  <div class="form-group"><label class="form-label">장소</label><input type="text" class="form-control" id="edit-location" required></div>
+                  <div class="form-group">
+                    <label class="form-label">사전 참가자 명단 등록 (선택)</label>
+                    <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.5rem; line-height:1.4;">
+                      한 줄에 한 명씩 '이름,부서명' 형식으로 입력하세요.<br>
+                      부서명이 모두 동일하거나 기입하지 않으면 등수만 노출됩니다.<br>
+                      (예: 홍길동,교무부 또는 김영희)
+                    </p>
+                    <textarea class="form-control" id="edit-participants" style="min-height:150px; font-family:monospace;" placeholder="홍길동,교무부&#10;김철수,행정실&#10;이영희"></textarea>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" id="btn-edit-modal-cancel">취소</button>
+                  <button type="submit" class="btn btn-primary">저장</button>
                 </div>
               </form>
             </div>
@@ -2043,13 +2242,83 @@
           const date = this.container.querySelector('#add-date').value;
           const location = this.container.querySelector('#add-location').value;
           
+          const partsVal = this.container.querySelector('#add-participants').value;
+          const participants = partsVal.split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .map(line => {
+              const idx = line.indexOf(',');
+              if (idx !== -1) {
+                return {
+                  name: line.substring(0, idx).trim(),
+                  department: line.substring(idx + 1).trim()
+                };
+              }
+              return { name: line, department: '' };
+            });
+          
           const defaultMods = [{ id: 'mod_sig_default', type: 'signature', label: '자필 서명', required: true }];
           
           try {
-            const tr = await api.createTraining(title, date, location, defaultMods);
+            const tr = await api.createTraining(title, date, location, defaultMods, participants);
             showToast('연수가 추가되었습니다.', 'success');
             close();
             window.location.hash = `#/builder?id=${tr.id}`;
+          } catch (err) { showToast(err.message, 'danger'); }
+        });
+
+        const editModal = this.container.querySelector('#edit-modal');
+        const closeEdit = () => { editModal.style.display = 'none'; this.container.querySelector('#edit-form').reset(); };
+        this.container.querySelector('#btn-edit-modal-close').addEventListener('click', closeEdit);
+        this.container.querySelector('#btn-edit-modal-cancel').addEventListener('click', closeEdit);
+
+        this.container.querySelectorAll('.btn-edit').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            const t = this.trainings.find(tr => tr.id === id);
+            if (!t) return;
+            this.container.querySelector('#edit-id').value = t.id;
+            this.container.querySelector('#edit-title').value = t.title || '';
+            this.container.querySelector('#edit-date').value = t.date || '';
+            this.container.querySelector('#edit-location').value = t.location || '';
+            
+            const partsText = (t.participants || []).map(p => {
+              if (p.department) return `${p.name},${p.department}`;
+              return p.name || '';
+            }).join('\n');
+            this.container.querySelector('#edit-participants').value = partsText;
+            
+            editModal.style.display = 'flex';
+          });
+        });
+
+        this.container.querySelector('#edit-form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const id = this.container.querySelector('#edit-id').value;
+          const title = this.container.querySelector('#edit-title').value;
+          const date = this.container.querySelector('#edit-date').value;
+          const location = this.container.querySelector('#edit-location').value;
+          
+          const partsVal = this.container.querySelector('#edit-participants').value;
+          const participants = partsVal.split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .map(line => {
+              const idx = line.indexOf(',');
+              if (idx !== -1) {
+                return {
+                  name: line.substring(0, idx).trim(),
+                  department: line.substring(idx + 1).trim()
+                };
+              }
+              return { name: line, department: '' };
+            });
+            
+          try {
+            await api.updateTraining(id, title, date, location, participants);
+            showToast('연수 정보가 수정되었습니다.', 'success');
+            closeEdit();
+            this.init();
           } catch (err) { showToast(err.message, 'danger'); }
         });
 
@@ -2422,12 +2691,69 @@
         try {
           this.training = await api.getForm(this.trainingId);
           this.responses = await api.getResponses(this.trainingId);
+          // 시간순 정렬 (오름차순)
+          this.responses.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
           this.render();
         } catch (e) { showToast(e.message, 'danger'); window.location.hash = '#/admin'; }
+      }
+      getRankBadge(idx) {
+        if (idx === 0) return `<span class="badge" style="background-color:#fef3c7; color:#d97706; border:1px solid #fde68a; font-size:0.75rem; padding:0.15rem 0.4rem; border-radius:4px; margin-left:0.5rem; display:inline-flex; align-items:center; gap:0.25rem;">🥇 1등</span>`;
+        if (idx === 1) return `<span class="badge" style="background-color:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-size:0.75rem; padding:0.15rem 0.4rem; border-radius:4px; margin-left:0.5rem; display:inline-flex; align-items:center; gap:0.25rem;">🥈 2등</span>`;
+        if (idx === 2) return `<span class="badge" style="background-color:#ffedd5; color:#ea580c; border:1px solid #fed7aa; font-size:0.75rem; padding:0.15rem 0.4rem; border-radius:4px; margin-left:0.5rem; display:inline-flex; align-items:center; gap:0.25rem;">🥉 3등</span>`;
+        return `<span class="badge" style="font-size:0.75rem; padding:0.15rem 0.4rem; border-radius:4px; margin-left:0.5rem; border:1px solid var(--border-color); color:var(--text-secondary); display:inline-flex; align-items:center;">${idx + 1}등</span>`;
       }
       render() {
         const shareLink = this.getShareLink();
         const activeMods = (this.training.modules || []).filter(m => m.type !== 'divider' && m.type !== 'info_text' && m.type !== 'image' && m.type !== 'file_download');
+
+        // 부서 달성률 통계 계산 및 HTML 생성
+        const participants = this.training.participants || [];
+        const deptNames = participants.map(p => (p.department || '').trim()).filter(d => d !== '');
+        const uniqueDepts = [...new Set(deptNames)];
+        const showDeptRanking = uniqueDepts.length > 1;
+
+        let deptRankingHtml = '';
+        if (showDeptRanking) {
+          const attendedNames = new Set(this.responses.map(r => r.name.trim()));
+          const deptStats = uniqueDepts.map(dept => {
+            const targetCount = participants.filter(p => (p.department || '').trim() === dept).length;
+            const attendedCount = participants.filter(p => (p.department || '').trim() === dept && attendedNames.has(p.name.trim())).length;
+            const rate = targetCount > 0 ? (attendedCount / targetCount) * 100 : 0;
+            return { dept, targetCount, attendedCount, rate };
+          });
+
+          // 달성률 내림차순, 동일 시 인원수 많은 순 정렬
+          deptStats.sort((a, b) => b.rate - a.rate || b.targetCount - a.targetCount);
+
+          deptRankingHtml = `
+            <div class="card" style="margin-bottom: 2rem; padding: 1.5rem;">
+              <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+                📊 부서별 출석 달성률 랭킹
+              </h3>
+              <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:1rem;">
+                ${deptStats.map((stat, idx) => {
+                  const medal = idx === 0 ? '🏆' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : '👏'));
+                  const pct = stat.rate.toFixed(1);
+                  return `
+                    <div style="background-color:var(--bg-primary); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem; display:flex; flex-direction:column; gap:0.5rem; position:relative; overflow:hidden;">
+                      <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:700; font-size:1rem;">${medal} ${idx + 1}위. ${stat.dept}</span>
+                        <span style="font-weight:800; color:var(--color-primary);">${pct}%</span>
+                      </div>
+                      <div style="width:100%; height:8px; background-color:var(--border-color); border-radius:4px; overflow:hidden;">
+                        <div style="width:${pct}%; height:100%; background:linear-gradient(90deg, var(--color-primary), #8b5cf6); transition:width 0.5s ease-on-out;"></div>
+                      </div>
+                      <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary);">
+                        <span>참석 대상: ${stat.targetCount}명</span>
+                        <span>실제 참석: ${stat.attendedCount}명</span>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        }
 
         this.container.innerHTML = `
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
@@ -2453,6 +2779,8 @@
             </div>
           </div>
 
+          ${deptRankingHtml}
+
           <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-bottom:1rem;">
             <button class="btn btn-secondary btn-sm" id="btn-csv" ${this.responses.length === 0 ? 'disabled' : ''}>CSV 내보내기</button>
             <button class="btn btn-primary btn-sm" id="btn-pdf-settings" ${this.responses.length === 0 ? 'disabled' : ''}>인쇄용 PDF 출력</button>
@@ -2476,7 +2804,11 @@
                     <tr>
                       <td style="text-align:center;">${idx + 1}</td>
                       <td style="font-size:0.8rem;">${this.fmtDate(resp.timestamp)}</td>
-                      <td style="font-weight:700;">${resp.name}</td>
+                      <td style="font-weight:700;">
+                        <div style="display:inline-flex; align-items:center;">
+                          ${resp.name}${this.getRankBadge(idx)}
+                        </div>
+                      </td>
                       ${activeMods.map(m => `<td>${this.renderVal(m.type, resp.responses[m.id])}</td>`).join('')}
                     </tr>
                   `).join('')}
@@ -2493,6 +2825,22 @@
                 <button class="modal-close" id="btn-pdf-modal-close">&times;</button>
               </div>
               <div class="modal-body">
+                <!-- 한글 폰트 등록 섹션 (행정망/로컬 전용) -->
+                <div class="card" style="padding:1rem; margin-bottom:1.25rem; background-color:var(--bg-primary); border:1px solid var(--border-color); box-shadow:none;">
+                  <h4 style="font-size:0.875rem; font-weight:700; margin-bottom:0.5rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span>🔤 로컬 한글 폰트 캐시</span>
+                    <span id="font-status-badge" class="badge" style="font-size:0.75rem; padding:0.15rem 0.4rem; border-radius:4px;">조회 중...</span>
+                  </h4>
+                  <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.75rem; line-height:1.4;">
+                    행정망 내부나 로컬 파일 실행(file://) 환경에서는 한글 폰트 다운로드가 제한될 수 있습니다. 폴더 안에 있는 <b>KoPubWorld Batang 폰트(.ttf)</b> 파일을 아래에 등록해주시면 오프라인에서도 한글 PDF 출력이 영구히 지원됩니다.
+                  </p>
+                  <div style="display:flex; gap:0.5rem; align-items:center;">
+                    <input type="file" id="font-file-input" accept=".ttf" style="display:none;">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-font-file-select" style="flex:1;">폰트 파일 등록 (.ttf)</button>
+                    <button type="button" class="btn btn-outline btn-sm" id="btn-font-cache-clear" style="color:var(--color-danger); display:none;">삭제</button>
+                  </div>
+                </div>
+
                 <div class="form-group">
                   <label class="form-label" style="margin-bottom:0.75rem;">출력할 컬럼 선택</label>
                   <div class="checkbox-group" id="pdf-cols-checks" style="max-height:160px; overflow-y:auto; border:1px solid var(--border-color); padding:0.75rem; border-radius:var(--radius-sm);">
@@ -2603,13 +2951,107 @@
         const pdfModalCancel = this.container.querySelector('#btn-pdf-modal-cancel');
         const pdfModalStart = this.container.querySelector('#btn-pdf-modal-start');
 
+        // 로컬 폰트 캐시 상태 UI 제어 바인딩
+        const updateFontStatus = async () => {
+          const badge = pdfModal.querySelector('#font-status-badge');
+          const clearBtn = pdfModal.querySelector('#btn-font-cache-clear');
+          try {
+            const cached = await FontCacheDB.get();
+            if (cached) {
+              badge.className = 'badge';
+              badge.textContent = '등록 완료';
+              badge.style.backgroundColor = 'var(--color-success-light)';
+              badge.style.color = 'var(--color-success)';
+              badge.style.border = '1px solid var(--color-success)';
+              clearBtn.style.display = 'inline-block';
+            } else {
+              badge.className = 'badge';
+              badge.textContent = '미등록';
+              badge.style.backgroundColor = 'var(--color-danger-light)';
+              badge.style.color = 'var(--color-danger)';
+              badge.style.border = '1px solid var(--color-danger)';
+              clearBtn.style.display = 'none';
+            }
+          } catch {
+            badge.className = 'badge';
+            badge.textContent = '확인 불가';
+            clearBtn.style.display = 'none';
+          }
+        };
+
         if (pdfSettingsBtn) {
-          pdfSettingsBtn.addEventListener('click', () => pdfModal.style.display = 'flex');
+          pdfSettingsBtn.addEventListener('click', async () => {
+            await updateFontStatus();
+            pdfModal.style.display = 'flex';
+          });
         }
         
         const closePdfModal = () => pdfModal.style.display = 'none';
         if (pdfModalClose) pdfModalClose.addEventListener('click', closePdfModal);
         if (pdfModalCancel) pdfModalCancel.addEventListener('click', closePdfModal);
+
+        // 폰트 선택 & 삭제 리스너 추가
+        const fileInput = pdfModal.querySelector('#font-file-input');
+        const selectBtn = pdfModal.querySelector('#btn-font-file-select');
+        const clearBtn = pdfModal.querySelector('#btn-font-cache-clear');
+
+        if (selectBtn) {
+          selectBtn.addEventListener('click', () => fileInput.click());
+        }
+
+        if (fileInput) {
+          fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (!file.name.endsWith('.ttf')) {
+              showToast('TTF 형식의 폰트 파일만 등록할 수 있습니다.', 'danger');
+              return;
+            }
+            
+            const progressOverlay = this.container.querySelector('#loading-overlay');
+            const progressMsg = this.container.querySelector('#loading-msg');
+            progressMsg.textContent = '폰트 등록 중...';
+            progressOverlay.style.display = 'flex';
+            
+            try {
+              const reader = new FileReader();
+              const base64 = await new Promise((resolve, reject) => {
+                reader.onloadend = () => {
+                  const result = reader.result;
+                  const base64Str = result.substring(result.indexOf(',') + 1);
+                  resolve(base64Str);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+              });
+              
+              await FontCacheDB.save(base64);
+              cachedFontBase64 = base64; // 전역 캐시 업데이트
+              showToast(`폰트가 등록되었습니다: ${file.name}`, 'success');
+              await updateFontStatus();
+            } catch (err) {
+              showToast('폰트 파일 읽기 및 저장에 실패했습니다: ' + err.message, 'danger');
+            } finally {
+              progressOverlay.style.display = 'none';
+              fileInput.value = '';
+            }
+          });
+        }
+
+        if (clearBtn) {
+          clearBtn.addEventListener('click', async () => {
+            if (confirm('등록된 폰트 캐시를 삭제하시겠습니까?')) {
+              try {
+                await FontCacheDB.remove();
+                cachedFontBase64 = null;
+                showToast('폰트 캐시가 삭제되었습니다.', 'warning');
+                await updateFontStatus();
+              } catch (err) {
+                showToast('삭제 실패: ' + err.message, 'danger');
+              }
+            }
+          });
+        }
 
         if (pdfModalStart) {
           pdfModalStart.addEventListener('click', async () => {

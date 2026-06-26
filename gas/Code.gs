@@ -69,10 +69,13 @@ function doPost(e) {
         result = adminLogin(payload.password);
         break;
       case 'createTraining':
-        result = createTraining(payload.title, payload.date, payload.location, payload.modules);
+        result = createTraining(payload.title, payload.date, payload.location, payload.modules, payload.participants);
         break;
       case 'updateForm':
         result = updateForm(payload.id, payload.modules);
+        break;
+      case 'updateTraining':
+        result = updateTraining(payload.id, payload.title, payload.date, payload.location, payload.participants);
         break;
       case 'deleteTraining':
         result = deleteTraining(payload.id);
@@ -108,12 +111,19 @@ function errorResponse(msg) {
 function initSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
-  // 5-1. trainings 시트가 없을 경우 자동 생성 (ID, 연수명, 날짜, 장소, 모듈 스키마 JSON, 생성일)
+  // 5-1. trainings 시트가 없을 경우 자동 생성 (ID, 연수명, 날짜, 장소, 모듈 스키마 JSON, 생성일, 사전참석자명단)
   let trSheet = ss.getSheetByName(SHEET_TRAININGS);
   if (!trSheet) {
     trSheet = ss.insertSheet(SHEET_TRAININGS);
-    trSheet.appendRow(['id', 'title', 'date', 'location', 'modules', 'createdAt']);
-    trSheet.getRange('A1:F1').setFontWeight('bold').setBackground('#eaeaea');
+    trSheet.appendRow(['id', 'title', 'date', 'location', 'modules', 'createdAt', 'participants']);
+    trSheet.getRange('A1:G1').setFontWeight('bold').setBackground('#eaeaea');
+  } else {
+    // 기존 시트에 participants 컬럼이 없으면 헤더에 추가
+    const headers = trSheet.getRange(1, 1, 1, trSheet.getLastColumn()).getValues()[0];
+    if (headers.indexOf('participants') === -1) {
+      trSheet.getRange(1, trSheet.getLastColumn() + 1).setValue('participants');
+      trSheet.getRange(1, trSheet.getLastColumn()).setFontWeight('bold').setBackground('#eaeaea');
+    }
   }
 
   // 5-2. admins 시트가 없을 경우 자동 생성 및 기본 비번 '1234' 시딩
@@ -131,6 +141,7 @@ function initSheets() {
 // -------------------------------------------------------------
 
 // 6-1. 연수 리스트 조회
+// 6-1. 연수 리스트 조회
 function getTrainings() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_TRAININGS);
@@ -143,7 +154,7 @@ function getTrainings() {
     const row = rows[i];
     const item = {};
     headers.forEach((h, hIdx) => {
-      if (h === 'modules') {
+      if (h === 'modules' || h === 'participants') {
         try {
           item[h] = JSON.parse(row[hIdx]);
         } catch (e) {
@@ -185,16 +196,29 @@ function adminLogin(password) {
 }
 
 // 6-4. 새 연수 생성
-function createTraining(title, date, location, modules) {
+function createTraining(title, date, location, modules, participants) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_TRAININGS);
   
   const newId = 'tr_' + new Date().getTime() + Math.floor(Math.random() * 10);
   const modulesJson = JSON.stringify(modules || []);
+  const participantsJson = JSON.stringify(participants || []);
   const createdAt = new Date().toISOString();
 
-  // trainings 테이블에 삽입
-  sheet.appendRow([newId, title, date, location, modulesJson, createdAt]);
+  // 헤더 컬럼 목록 조회
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const rowData = [];
+  headers.forEach(h => {
+    if (h === 'id') rowData.push(newId);
+    else if (h === 'title') rowData.push(title);
+    else if (h === 'date') rowData.push(date);
+    else if (h === 'location') rowData.push(location);
+    else if (h === 'modules') rowData.push(modulesJson);
+    else if (h === 'createdAt') rowData.push(createdAt);
+    else if (h === 'participants') rowData.push(participantsJson);
+    else rowData.push('');
+  });
+  sheet.appendRow(rowData);
 
   // 해당 연수를 위한 고유 응답 수집용 서브 시트 생성 (responses_{newId})
   const respSheetName = 'responses_' + newId;
@@ -206,7 +230,7 @@ function createTraining(title, date, location, modules) {
     respSheet.getRange('A1:C1').setFontWeight('bold').setBackground('#d1fae5');
   }
 
-  return { id: newId, title, date, location, modules, createdAt };
+  return { id: newId, title, date, location, modules, createdAt, participants };
 }
 
 // 6-5. 연수 폼 스키마 수정
@@ -214,6 +238,7 @@ function updateForm(id, modules) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_TRAININGS);
   const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
   
   let foundRowIdx = -1;
   for (let i = 1; i < rows.length; i++) {
@@ -226,7 +251,42 @@ function updateForm(id, modules) {
   if (foundRowIdx === -1) throw new Error('양식을 변경하려는 연수를 찾지 못했습니다.');
 
   const modulesJson = JSON.stringify(modules || []);
-  sheet.getRange(foundRowIdx, 5).setValue(modulesJson); // modules 칼럼은 E열(5번째)
+  const colIdx = headers.indexOf('modules') + 1;
+  if (colIdx > 0) {
+    sheet.getRange(foundRowIdx, colIdx).setValue(modulesJson);
+  } else {
+    sheet.getRange(foundRowIdx, 5).setValue(modulesJson);
+  }
+
+  return { success: true };
+}
+
+// 6-5-2. 연수 정보 및 사전참가자 명단 수정
+function updateTraining(id, title, date, location, participants) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_TRAININGS);
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  
+  let foundRowIdx = -1;
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] === id) {
+      foundRowIdx = i + 1; // 1-based index
+      break;
+    }
+  }
+
+  if (foundRowIdx === -1) throw new Error('정보를 변경하려는 연수를 찾지 못했습니다.');
+
+  const participantsJson = JSON.stringify(participants || []);
+
+  headers.forEach((h, hIdx) => {
+    const colIdx = hIdx + 1;
+    if (h === 'title') sheet.getRange(foundRowIdx, colIdx).setValue(title);
+    else if (h === 'date') sheet.getRange(foundRowIdx, colIdx).setValue(date);
+    else if (h === 'location') sheet.getRange(foundRowIdx, colIdx).setValue(location);
+    else if (h === 'participants') sheet.getRange(foundRowIdx, colIdx).setValue(participantsJson);
+  });
 
   return { success: true };
 }
